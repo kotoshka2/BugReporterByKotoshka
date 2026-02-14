@@ -13,6 +13,15 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/src/dashboard/main.jsx"></script>
+
+    <!-- Widget Demo: активен на лендинге для демонстрации -->
+    <script>
+        window.BugWidgetConfig = {
+            apiKey: 'demo',
+            lang: 'ru'
+        };
+    </script>
+    <script src="/bug-reporter/widget.js" defer onerror=""></script>
 </body>
 
 </html>

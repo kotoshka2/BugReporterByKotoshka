@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
+import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 
@@ -35,6 +36,7 @@ export default function App() {
 
     return (
         <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route
                 path="/auth"
                 element={session ? <Navigate to="/dashboard" replace /> : <AuthPage />}
@@ -43,7 +45,8 @@ export default function App() {
                 path="/dashboard/*"
                 element={session ? <DashboardPage session={session} /> : <Navigate to="/auth" replace />}
             />
-            <Route path="*" element={<Navigate to={session ? '/dashboard' : '/auth'} replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 }
+
