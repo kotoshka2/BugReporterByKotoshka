@@ -1,0 +1,11 @@
+services:
+  bug-reporter:
+    build:
+      context: .
+      args:
+        VITE_API_URL: https://bug-report-api.kotoshkadev.workers.dev/api/report
+        VITE_SUPABASE_URL: https://bgvyinibltggkyqcywjg.supabase.co
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    ports:
+      - "3080:80"
+    restart: unless-stopped

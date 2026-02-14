@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bug Report Widget — Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .demo-header {
+      text-align: center;
+      padding: 60px 20px 40px;
+    }
+
+    .demo-header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #6366f1, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .demo-header p {
+      color: #94a3b8;
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .demo-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    .demo-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(100, 116, 139, 0.2);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .demo-card h2 {
+      font-size: 1.3rem;
+      color: #c4b5fd;
+      margin-bottom: 16px;
+    }
+
+    .demo-card p {
+      color: #94a3b8;
+      line-height: 1.7;
+    }
+
+    .demo-card code {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a78bfa;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    .demo-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .demo-feature {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .demo-feature h3 {
+      font-size: 1rem;
+      color: #818cf8;
+      margin-bottom: 8px;
+    }
+
+    .demo-feature p {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .demo-hint {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+
+    .demo-hint span {
+      display: inline-block;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      width: 48px;
+      height: 48px;
+      line-height: 48px;
+      border-radius: 50%;
+      font-size: 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="demo-header">
+    <h1>🐞 Bug Report Widget</h1>
+    <p>Легковесный встраиваемый виджет для сбора баг-репортов со скриншотами. Нажмите кнопку в правом нижнем углу, чтобы
+      попробовать.</p>
+  </div>
+
+  <div class="demo-content">
+    <div class="demo-card">
+      <h2>Как это работает</h2>
+      <p>
+        Вы вставляете один <code>&lt;script&gt;</code> тег на свой сайт, и виджет появляется
+        автоматически. Пользователь может выделить область экрана, написать комментарий,
+        и отправить баг-репорт со всеми техническими данными прямо вам в Telegram или Notion.
+      </p>
+    </div>
+
+    <div class="demo-features">
+      <div class="demo-feature">
+        <h3>📸 Скриншоты</h3>
+        <p>Захват и обрезка любой области экрана прямо в браузере</p>
+      </div>
+      <div class="demo-feature">
+        <h3>🔒 Изоляция стилей</h3>
+        <p>Shadow DOM гарантирует, что виджет не ломает ваш сайт</p>
+      </div>
+      <div class="demo-feature">
+        <h3>📱 Telegram</h3>
+        <p>Мгновенные уведомления о багах прямо в ваш чат</p>
+      </div>
+      <div class="demo-feature">
+        <h3>📋 Notion</h3>
+        <p>Автоматическое создание тикетов в вашей базе данных</p>
+      </div>
+      <div class="demo-feature">
+        <h3>⚡ Лёгкий</h3>
+        <p>Минимальное влияние на производительность сайта</p>
+      </div>
+      <div class="demo-feature">
+        <h3>🛠️ Метаданные</h3>
+        <p>Браузер, ОС, разрешение экрана, URL — автоматически</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-hint">
+    <span>↘</span>
+    <p>Нажмите кнопку с жуком в правом нижнем углу →</p>
+  </div>
+
+  <!-- Widget config -->
+  <script>
+    window.BugWidgetConfig = {
+      apiKey: 'brw_fMuCCwfCjlstO9vTzLlj9qvZDk6b9JJl', // valid local demo key
+      position: 'bottom-right',
+    };
+  </script>
+
+  <!-- Widget (dev mode — Vite will serve this) -->
+  <script type="module" src="/src/widget/index.js"></script>
+</body>
+
+</html>
