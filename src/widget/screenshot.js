@@ -24,7 +24,7 @@ export async function captureScreenshot(widgetRoot) {
             canvasHeight: window.innerHeight * Math.min(window.devicePixelRatio, 2),
             pixelRatio: 1,
             skipAutoScale: true,
-            cacheBust: false, // Fix: prevents appending timestamps to data-uris which causes 400 errors
+            cacheBust: true,
             // Filter out the widget root even if display:none fails
             filter: (node) => {
                 if (node === widgetRoot) return false;
