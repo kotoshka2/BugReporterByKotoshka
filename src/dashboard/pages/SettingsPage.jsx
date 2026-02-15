@@ -7,6 +7,9 @@ export default function SettingsPage({ client, onUpdate }) {
     const [tgChatId, setTgChatId] = useState(client?.tg_chat_id || '');
     const [notionKey, setNotionKey] = useState(client?.notion_key || '');
     const [notionDbId, setNotionDbId] = useState(client?.notion_db_id || '');
+    const [allowedDomains, setAllowedDomains] = useState(
+        (client?.allowed_domains || []).join(', ')
+    );
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [copied, setCopied] = useState(false);
@@ -16,6 +19,12 @@ export default function SettingsPage({ client, onUpdate }) {
         setSaving(true);
         setMessage('');
 
+        // Parse domains: "example.com, app.example.com" → ["example.com", "app.example.com"]
+        const domainsArray = allowedDomains
+            .split(',')
+            .map((d) => d.trim())
+            .filter(Boolean);
+
         const { error } = await supabase
             .from('clients')
             .update({
@@ -23,6 +32,7 @@ export default function SettingsPage({ client, onUpdate }) {
                 tg_chat_id: tgChatId || null,
                 notion_key: notionKey || null,
                 notion_db_id: notionDbId || null,
+                allowed_domains: domainsArray.length > 0 ? domainsArray : null,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', client.id);
@@ -61,6 +71,25 @@ export default function SettingsPage({ client, onUpdate }) {
                     <button onClick={copySnippet} className="btn btn--sm btn--outline">
                         {copied ? '✅ Скопировано' : '📋 Копировать сниппет'}
                     </button>
+                </div>
+            </div>
+
+            {/* Domain Protection */}
+            <div className="card">
+                <h2 className="card__title">🔒 Разрешённые домены</h2>
+                <p className="card__desc">
+                    Укажите домены, с которых разрешено отправлять баг-репорты.
+                    Если оставить пустым — запросы принимаются с любого сайта.
+                </p>
+                <div className="form-group">
+                    <label htmlFor="allowed-domains">Домены (через запятую)</label>
+                    <input
+                        id="allowed-domains"
+                        type="text"
+                        value={allowedDomains}
+                        onChange={(e) => setAllowedDomains(e.target.value)}
+                        placeholder="example.com, app.example.com"
+                    />
                 </div>
             </div>
 

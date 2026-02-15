@@ -59,6 +59,18 @@ async function handleReport(request, env) {
             return jsonResponse({ error: 'Account is deactivated' }, 403, request);
         }
 
+        // ── Validate Origin (Domain Protection) ──
+        if (client.allowed_domains && client.allowed_domains.length > 0) {
+            const origin = request.headers.get('Origin') || '';
+            const isAllowed = client.allowed_domains.some((domain) => {
+                // Match origin exactly or match just the hostname
+                return origin === domain || origin === `https://${domain}` || origin === `http://${domain}`;
+            });
+            if (!isAllowed) {
+                return jsonResponse({ error: 'Domain not allowed' }, 403, request);
+            }
+        }
+
         // ── Validate payload ──
         if (!comment && !screenshot) {
             return jsonResponse({ error: 'Comment or screenshot is required' }, 400, request);
