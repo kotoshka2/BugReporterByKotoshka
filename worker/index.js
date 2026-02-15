@@ -27,6 +27,11 @@ export default {
             return handleReport(request, env);
         }
 
+        // ── Route: GET /api/config ──
+        if (url.pathname === '/api/config' && request.method === 'GET') {
+            return handleConfig(request, env, url);
+        }
+
         // ── Health check ──
         if (url.pathname === '/health') {
             return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
@@ -127,6 +132,40 @@ async function handleReport(request, env) {
         );
     } catch (err) {
         console.error('handleReport error:', err);
+        return jsonResponse(
+            { error: 'Internal Server Error', details: err.message },
+            500,
+            request
+        );
+    }
+}
+
+// ────────────────────────────────────────────
+// Route Handler: /api/config
+// ────────────────────────────────────────────
+
+async function handleConfig(request, env, url) {
+    try {
+        const apiKey = url.searchParams.get('apiKey');
+        if (!apiKey) {
+            return jsonResponse({ error: 'apiKey query parameter is required' }, 400, request);
+        }
+
+        const client = await getClientByApiKey(apiKey, env);
+        if (!client) {
+            return jsonResponse({ error: 'Invalid API key' }, 401, request);
+        }
+
+        if (!client.is_active) {
+            return jsonResponse({ error: 'Account is deactivated' }, 403, request);
+        }
+
+        return jsonResponse({
+            mode: client.widget_mode || 'public',
+            secretHash: client.widget_secret_hash || null,
+        }, 200, request);
+    } catch (err) {
+        console.error('handleConfig error:', err);
         return jsonResponse(
             { error: 'Internal Server Error', details: err.message },
             500,
@@ -414,7 +453,7 @@ function handleCORS(request, env) {
         status: 204,
         headers: {
             'Access-Control-Allow-Origin': isAllowed ? origin : '',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '86400',
         },
