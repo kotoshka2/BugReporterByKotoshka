@@ -1,33 +1,9 @@
 /**
  * Screenshot capture module using html-to-image.
- * Pre-fetches external stylesheets to avoid CORS/SecurityError issues.
+ * Uses SVG foreignObject for high-fidelity rendering of modern CSS
+ * (backdrop-filter, mix-blend-mode, gradients, etc.)
  */
 import { toPng } from 'html-to-image';
-
-/**
- * Fetch all external stylesheets and return their combined CSS text.
- * Silently skips any sheets that fail to load.
- * @returns {Promise<{ css: string, hrefs: string[] }>}
- */
-async function prefetchStyles() {
-    const links = document.querySelectorAll('link[rel="stylesheet"]');
-    const hrefs = [];
-    const fetches = [];
-
-    links.forEach((link) => {
-        const href = link.href;
-        if (!href) return;
-        hrefs.push(href);
-        fetches.push(
-            fetch(href)
-                .then((r) => (r.ok ? r.text() : ''))
-                .catch(() => '')
-        );
-    });
-
-    const results = await Promise.all(fetches);
-    return { css: results.join('\n'), hrefs };
-}
 
 /**
  * Capture the current visible viewport.
@@ -41,9 +17,6 @@ export async function captureScreenshot(widgetRoot) {
     }
 
     try {
-        // Pre-fetch external CSS to avoid SecurityError on cssRules
-        const { css, hrefs } = await prefetchStyles();
-
         const dataUrl = await toPng(document.body, {
             width: window.innerWidth,
             height: window.innerHeight,
@@ -51,21 +24,12 @@ export async function captureScreenshot(widgetRoot) {
             canvasHeight: window.innerHeight * Math.min(window.devicePixelRatio, 2),
             pixelRatio: 1,
             skipAutoScale: true,
-            cacheBust: false,
-            // Provide pre-fetched CSS so the library doesn't try to read cssRules
-            fontEmbedCSS: css,
+            cacheBust: false, // Fix: prevents appending timestamps to data-uris which causes 400 errors
+            // Filter out the widget root even if display:none fails
             filter: (node) => {
                 if (node === widgetRoot) return false;
+                // Skip nodes that explicitly opt out
                 if (node.dataset && node.dataset.htmlToImageIgnore) return false;
-                // Remove external <link> stylesheets from the clone
-                // (we already inlined their content via fontEmbedCSS)
-                if (
-                    node.tagName === 'LINK' &&
-                    node.rel === 'stylesheet' &&
-                    hrefs.includes(node.href)
-                ) {
-                    return false;
-                }
                 return true;
             },
         });
