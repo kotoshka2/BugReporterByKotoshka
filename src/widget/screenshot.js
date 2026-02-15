@@ -1,9 +1,8 @@
 /**
- * Screenshot capture module using html-to-image.
- * Uses SVG foreignObject for high-fidelity rendering of modern CSS
- * (backdrop-filter, mix-blend-mode, gradients, etc.)
+ * Screenshot capture module using html2canvas.
+ * Takes a screenshot of the visible viewport and returns it as a data URL.
  */
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 
 /**
  * Capture the current visible viewport.
@@ -17,24 +16,20 @@ export async function captureScreenshot(widgetRoot) {
     }
 
     try {
-        const dataUrl = await toPng(document.body, {
+        const canvas = await html2canvas(document.body, {
+            useCORS: true,
+            allowTaint: false,
             width: window.innerWidth,
             height: window.innerHeight,
-            canvasWidth: window.innerWidth * Math.min(window.devicePixelRatio, 2),
-            canvasHeight: window.innerHeight * Math.min(window.devicePixelRatio, 2),
-            pixelRatio: 1,
-            skipAutoScale: true,
-            cacheBust: true,
-            // Filter out the widget root even if display:none fails
-            filter: (node) => {
-                if (node === widgetRoot) return false;
-                // Skip nodes that explicitly opt out
-                if (node.dataset && node.dataset.htmlToImageIgnore) return false;
-                return true;
-            },
+            scrollX: -window.scrollX,
+            scrollY: -window.scrollY,
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight,
+            logging: false,
+            scale: Math.min(window.devicePixelRatio, 2), // cap at 2x for perf
         });
 
-        return dataUrl;
+        return canvas.toDataURL('image/png');
     } finally {
         // Restore widget visibility
         if (widgetRoot) {
