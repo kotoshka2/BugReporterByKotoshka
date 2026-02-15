@@ -6,6 +6,13 @@ export default function LandingPage() {
 
     return (
         <div className="landing">
+            {/* Background Shapes */}
+            <div className="background-shapes">
+                <div className="shape shape-1"></div>
+                <div className="shape shape-2"></div>
+                <div className="shape shape-3"></div>
+            </div>
+
             {/* Hero Section */}
             <header className="landing__hero">
                 <nav className="landing__nav">
