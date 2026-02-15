@@ -42,7 +42,7 @@ export default function SettingsPage({ client, onUpdate }) {
     apiKey: '${client?.api_key || 'YOUR_API_KEY'}'
   };
 </script>
-<script src="https://cdn.your-domain.com/widget.iife.js" defer></script>`;
+<script src="https://today-is-friday.tech/bug-reporter/widget.js" defer></script>`;
         navigator.clipboard.writeText(snippet);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -109,8 +109,8 @@ export default function SettingsPage({ client, onUpdate }) {
                     {/* System bot instructions */}
                     {botMode === 'system' && (
                         <div className="bot-instructions">
-                            <p>1. Начните диалог с нашим ботом: <a href="https://t.me/BugReportSystemBot" target="_blank" rel="noopener">@BugReportSystemBot</a></p>
-                            <p>2. Отправьте команду <code>/start</code></p>
+                            <p>1. Начните диалог или добавьте в беседу нашего бота: <a href="https://t.me/BugReporterbykotoshka" target="_blank" rel="noopener">@bug_reporter_by_kotoshka_bot</a></p>
+                            <p>2. Отправьте команду <code>/chatid</code></p>
                             <p>3. Скопируйте Chat ID и вставьте ниже</p>
                         </div>
                     )}
@@ -151,7 +151,7 @@ export default function SettingsPage({ client, onUpdate }) {
                 </div>
 
                 <div className="card">
-                    <h2 className="card__title">📋 Notion</h2>
+                    <h2 className="card__title">📋 Notion W.I.P.</h2>
                     <p className="card__desc">
                         Автоматически создавайте тикеты в Notion.
                         <a href="https://developers.notion.com" target="_blank" rel="noopener"> Создать интеграцию →</a>
