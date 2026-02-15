@@ -3,8 +3,8 @@
  *
  * Использование:
  *   node scripts/admin.js add "Client Name" --tg-token=XXX --tg-chat=YYY
- *   node scripts/admin.js add "Client Name" --tg-token=XXX --tg-chat=YYY --mode=restricted --secret-hash=SHA256HEX
  *   node scripts/admin.js add "Client Name" --notion-key=XXX --notion-db=YYY
+ *   node scripts/admin.js add "Client Name" --tg-token=XXX --tg-chat=YYY --notion-key=ZZZ --notion-db=WWW
  *   node scripts/admin.js list
  *
  * Environment:
@@ -61,8 +61,6 @@ async function addClient(name, flags) {
         tg_chat_id: flags['tg-chat'] || null,
         notion_key: flags['notion-key'] || null,
         notion_db_id: flags['notion-db'] || null,
-        widget_mode: flags['mode'] || 'public',
-        widget_secret_hash: flags['secret-hash'] || null,
     };
 
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/clients`, {
@@ -90,7 +88,6 @@ async function addClient(name, flags) {
     console.log(`   Имя:      ${created.name}`);
     console.log(`   API Key:  ${created.api_key}`);
     console.log(`   ID:       ${created.id}`);
-    console.log(`   Mode:     ${created.widget_mode}`);
     console.log('');
     console.log('📋 Сниппет для клиента:');
     console.log('');
