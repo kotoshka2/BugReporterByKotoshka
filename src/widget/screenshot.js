@@ -54,8 +54,6 @@ export async function captureScreenshot(widgetRoot) {
             cacheBust: false,
             // Provide pre-fetched CSS so the library doesn't try to read cssRules
             fontEmbedCSS: css,
-            // Fallback for cross-origin images that fail to load (e.g. YouTube thumbnails)
-            imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQIW2P4DwQACfsD/Ql5bNMAAAAASUVORK5CYII=',
             filter: (node) => {
                 if (node === widgetRoot) return false;
                 if (node.dataset && node.dataset.htmlToImageIgnore) return false;
