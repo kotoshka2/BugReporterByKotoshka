@@ -18,6 +18,10 @@ create table if not exists clients (
   notion_key text,
   notion_db_id text,
 
+  -- Widget visibility
+  widget_mode text default 'public',   -- 'public' or 'restricted'
+  widget_secret_hash text,             -- SHA-256 hash of the access secret
+
   -- Metadata
   is_active boolean default true,
   created_at timestamptz default now(),

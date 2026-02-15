@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
+// ── SHA-256 helper ──
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export default function SettingsPage({ client, onUpdate }) {
     const [botMode, setBotMode] = useState(client?.tg_bot_token ? 'custom' : 'system');
     const [tgBotToken, setTgBotToken] = useState(client?.tg_bot_token || '');
@@ -14,6 +22,11 @@ export default function SettingsPage({ client, onUpdate }) {
     const [message, setMessage] = useState('');
     const [copied, setCopied] = useState(false);
 
+    // ── Widget Visibility ──
+    const [widgetMode, setWidgetMode] = useState(client?.widget_mode || 'public');
+    const [secretPassword, setSecretPassword] = useState('');
+    const [linkCopied, setLinkCopied] = useState(false);
+
     const handleSave = async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -25,22 +38,32 @@ export default function SettingsPage({ client, onUpdate }) {
             .map((d) => d.trim())
             .filter(Boolean);
 
+        // Build update payload
+        const updateData = {
+            tg_bot_token: botMode === 'custom' ? (tgBotToken || null) : null,
+            tg_chat_id: tgChatId || null,
+            notion_key: notionKey || null,
+            notion_db_id: notionDbId || null,
+            allowed_domains: domainsArray.length > 0 ? domainsArray : null,
+            widget_mode: widgetMode,
+            updated_at: new Date().toISOString(),
+        };
+
+        // If a new password was entered, hash it
+        if (secretPassword.trim()) {
+            updateData.widget_secret_hash = await sha256(secretPassword.trim());
+        }
+
         const { error } = await supabase
             .from('clients')
-            .update({
-                tg_bot_token: botMode === 'custom' ? (tgBotToken || null) : null,
-                tg_chat_id: tgChatId || null,
-                notion_key: notionKey || null,
-                notion_db_id: notionDbId || null,
-                allowed_domains: domainsArray.length > 0 ? domainsArray : null,
-                updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('id', client.id);
 
         if (error) {
             setMessage('Ошибка сохранения: ' + error.message);
         } else {
             setMessage('Настройки сохранены! ✅');
+            setSecretPassword(''); // Clear password field after save
             onUpdate();
         }
         setSaving(false);
@@ -91,6 +114,95 @@ export default function SettingsPage({ client, onUpdate }) {
                         placeholder="example.com, app.example.com"
                     />
                 </div>
+            </div>
+
+            {/* Widget Visibility */}
+            <div className="card">
+                <h2 className="card__title">👁️ Видимость виджета</h2>
+                <p className="card__desc">
+                    Выберите, кто может видеть виджет баг-репортов на вашем сайте.
+                </p>
+
+                <div className="bot-mode-toggle">
+                    <label
+                        className={`bot-mode-option ${widgetMode === 'public' ? 'bot-mode-option--active' : ''}`}
+                        onClick={() => setWidgetMode('public')}
+                    >
+                        <input
+                            type="radio"
+                            name="widgetMode"
+                            value="public"
+                            checked={widgetMode === 'public'}
+                            onChange={() => setWidgetMode('public')}
+                        />
+                        <div>
+                            <strong>🌍 Публичный</strong>
+                            <span>Виджет видят все посетители сайта</span>
+                        </div>
+                    </label>
+                    <label
+                        className={`bot-mode-option ${widgetMode === 'restricted' ? 'bot-mode-option--active' : ''}`}
+                        onClick={() => setWidgetMode('restricted')}
+                    >
+                        <input
+                            type="radio"
+                            name="widgetMode"
+                            value="restricted"
+                            checked={widgetMode === 'restricted'}
+                            onChange={() => setWidgetMode('restricted')}
+                        />
+                        <div>
+                            <strong>🔐 Ограниченный</strong>
+                            <span>Только по Magic Link с паролем</span>
+                        </div>
+                    </label>
+                </div>
+
+                {widgetMode === 'restricted' && (
+                    <>
+                        <div className="form-group" style={{ marginTop: '16px' }}>
+                            <label htmlFor="secret-password">Пароль доступа</label>
+                            <input
+                                id="secret-password"
+                                type="text"
+                                value={secretPassword}
+                                onChange={(e) => setSecretPassword(e.target.value)}
+                                placeholder={client?.widget_secret_hash ? 'Введите новый пароль для смены…' : 'Введите пароль…'}
+                            />
+                            {client?.widget_secret_hash && !secretPassword && (
+                                <small style={{ color: 'var(--color-text-muted, #94a3b8)', marginTop: '4px', display: 'block' }}>
+                                    Пароль уже установлен. Оставьте пустым, чтобы не менять.
+                                </small>
+                            )}
+                        </div>
+
+                        {secretPassword && (
+                            <div className="bot-instructions" style={{ marginTop: '12px' }}>
+                                <p><strong>🔗 Magic Link для тестировщиков:</strong></p>
+                                <div className="api-key-box" style={{ marginTop: '8px' }}>
+                                    <code style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
+                                        ?brw_secret={secretPassword}
+                                    </code>
+                                    <button
+                                        type="button"
+                                        className="btn btn--sm btn--outline"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`?brw_secret=${secretPassword}`);
+                                            setLinkCopied(true);
+                                            setTimeout(() => setLinkCopied(false), 2000);
+                                        }}
+                                    >
+                                        {linkCopied ? '✅ Скопировано' : '📋 Копировать'}
+                                    </button>
+                                </div>
+                                <small style={{ color: 'var(--color-text-muted, #94a3b8)', marginTop: '8px', display: 'block' }}>
+                                    Добавьте этот параметр к URL вашего сайта и отправьте тестировщику.
+                                    Не забудьте сохранить настройки!
+                                </small>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             {/* Integrations */}

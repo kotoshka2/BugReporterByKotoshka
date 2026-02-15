@@ -12,8 +12,16 @@
  *     window.BugWidgetConfig = {
  *       apiKey: 'brw_XXXXXXXXXXXX',
  *       position: 'bottom-right', // or 'bottom-left'
+ *       mode: 'public',           // 'public' (default) or 'restricted'
+ *       secretHash: '...',        // SHA-256 hash of the secret (required when mode='restricted')
  *     };
  *   </script>
+ *
+ * Restricted mode:
+ *   When mode='restricted', the widget is hidden unless the user visits
+ *   the page with ?brw_secret=<password>. The password is hashed and
+ *   compared against secretHash. On match, access is persisted in localStorage.
+ *   Changing secretHash in config revokes all previous access.
  */
 
 import { captureScreenshot, cropScreenshot } from './screenshot.js';
@@ -24,6 +32,69 @@ import widgetStyles from './styles.css?inline';
 
 // API URL injected at build time by Vite
 const API_URL = import.meta.env.VITE_API_URL;
+
+// ── Access Control Helpers ──────────────────────────────
+
+const BRW_STORAGE_KEY = 'brw_access_token';
+
+/**
+ * Compute SHA-256 hex digest of a string.
+ * Uses the native Web Crypto API (available in all modern browsers).
+ */
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Check if the user has access in 'restricted' mode.
+ *
+ * 1. Check URL for ?brw_secret=<password>  → hash & compare → persist.
+ * 2. Check localStorage for a previously stored token → hash & compare.
+ * 3. If secretHash changed in config, stored tokens become invalid.
+ *
+ * @param {string} secretHash - SHA-256 hex hash of the secret password.
+ * @returns {Promise<boolean>} true if access is granted.
+ */
+async function checkAccess(secretHash) {
+    // 1. Check URL parameter
+    const params = new URLSearchParams(window.location.search);
+    const urlSecret = params.get('brw_secret');
+
+    if (urlSecret) {
+        const hash = await sha256(urlSecret);
+        if (hash === secretHash) {
+            // Persist the plain token so user stays authorized
+            try {
+                localStorage.setItem(BRW_STORAGE_KEY, urlSecret);
+            } catch (_) { /* localStorage may be unavailable */ }
+
+            // Clean URL (remove brw_secret param) to avoid sharing
+            const url = new URL(window.location);
+            url.searchParams.delete('brw_secret');
+            window.history.replaceState({}, '', url);
+
+            return true;
+        }
+    }
+
+    // 2. Check localStorage for previously stored token
+    try {
+        const storedToken = localStorage.getItem(BRW_STORAGE_KEY);
+        if (storedToken) {
+            const hash = await sha256(storedToken);
+            if (hash === secretHash) {
+                return true;
+            }
+            // Hash mismatch → secret was rotated, clear old token
+            localStorage.removeItem(BRW_STORAGE_KEY);
+        }
+    } catch (_) { /* localStorage may be unavailable */ }
+
+    return false;
+}
 
 // ── Icons (inline SVG) ─────────────────────────────────
 
@@ -39,11 +110,48 @@ class BugReportWidget {
             position: config.position || 'bottom-right',
             apiKey: config.apiKey || '',
             lang: config.lang || 'ru',
+            mode: config.mode || 'public',
+            secretHash: config.secretHash || '',
             ...config,
         };
 
         this.screenshotDataUrl = null;
         this.isOpen = false;
+
+        // Defer initialization: for 'restricted' mode we need
+        // an async access check before rendering anything.
+        this._boot();
+    }
+
+    // ── Boot (async access gate) ──
+
+    async _boot() {
+        try {
+            // Fetch visibility settings from backend
+            const resp = await fetch(`${API_URL.replace('/api/report', '')}/api/config?apiKey=${encodeURIComponent(this.config.apiKey)}`);
+            if (resp.ok) {
+                const serverConfig = await resp.json();
+                this.config.mode = serverConfig.mode || 'public';
+                this.config.secretHash = serverConfig.secretHash || '';
+            } else {
+                console.warn('[BugReportWidget] Failed to fetch config, defaulting to public mode.');
+            }
+        } catch (err) {
+            console.warn('[BugReportWidget] Config fetch error, defaulting to public mode:', err.message);
+        }
+
+        // Apply access control
+        if (this.config.mode === 'restricted') {
+            if (!this.config.secretHash) {
+                console.warn('[BugReportWidget] mode="restricted" but no secretHash configured. Widget disabled.');
+                return;
+            }
+            const hasAccess = await checkAccess(this.config.secretHash);
+            if (!hasAccess) {
+                // User is not authorized — do not render widget
+                return;
+            }
+        }
 
         this._init();
     }
