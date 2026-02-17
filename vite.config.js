@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // Dashboard SPA config (default: npm run dev / npm run build)
 export default defineConfig({
     plugins: [react()],
-    base: '/bug-reporter/',
+    base: '/errora/',
     build: {
         outDir: 'dist/dashboard',
         rollupOptions: {

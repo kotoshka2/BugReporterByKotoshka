@@ -1,5 +1,5 @@
 /**
- * Bug Report Widget — Cloudflare Worker API Gateway
+ * Errora — Cloudflare Worker API Gateway
  *
  * Multi-tenant SaaS Architecture:
  * 1. Validates the API key against the `clients` table in Supabase

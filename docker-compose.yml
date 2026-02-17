@@ -1,9 +1,9 @@
 services:
-  bug-reporter:
+  errora:
     build:
       context: .
       args:
-        VITE_API_URL: https://bug-report-api.kotoshkadev.workers.dev/api/report
+        VITE_API_URL: https://errora-api.kotoshkadev.workers.dev/api/report
         VITE_SUPABASE_URL: https://bgvyinibltggkyqcywjg.supabase.co
         VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
     ports:

@@ -6,7 +6,7 @@ import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <BrowserRouter basename="/bug-reporter">
+        <BrowserRouter basename="/errora">
             <App />
         </BrowserRouter>
     </React.StrictMode>

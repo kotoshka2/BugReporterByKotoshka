@@ -19,7 +19,7 @@ declare
   new_api_key text;
 begin
   -- Generate a unique API key
-  new_api_key := 'brw_' || encode(gen_random_bytes(24), 'base64');
+  new_api_key := 'err_' || encode(gen_random_bytes(24), 'base64');
   -- Remove non-alphanumeric chars from base64
   new_api_key := replace(replace(replace(new_api_key, '+', ''), '/', ''), '=', '');
 

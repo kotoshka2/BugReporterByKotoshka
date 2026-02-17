@@ -1,4 +1,4 @@
-# 🐞 Bug Report Widget
+# 🐞 Errora
 
 Легковесный встраиваемый виджет для сбора баг-репортов со скриншотами.
 Мульти-тенантный SaaS: каждый клиент получает API-ключ, репорты идут в **его** Telegram и/или Notion.
@@ -9,11 +9,11 @@
 
 ```html
 <script>
-  window.BugWidgetConfig = {
-    apiKey: 'brw_XXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+  window.ErroraWidgetConfig = {
+    apiKey: 'err_XXXXXXXXXXXXXXXXXXXXXXXXXXXX'
   };
 </script>
-<script src="https://cdn.your-domain.com/widget.iife.js" defer></script>
+<script src="https://cdn.your-domain.com/errora-widget.iife.js" defer></script>
 ```
 
 > API URL зашит в виджет при сборке. Клиенту указывать его не нужно.
@@ -23,7 +23,7 @@
 ```bash
 npm install
 npm run dev       # → http://localhost:3000/demo.html
-npm run build     # → dist/widget.iife.js
+npm run build     # → dist/errora-widget.iife.js
 ```
 
 > Перед продакшн-сборкой укажите URL вашего Worker'а в `.env.production`:
@@ -68,7 +68,7 @@ node scripts/admin.js list
 ## Структура проекта
 
 ```
-BugReportWidget/
+Errora/
 ├── src/widget/          # Frontend — виджет (Shadow DOM)
 ├── worker/              # Backend — Cloudflare Worker (API Gateway)
 ├── supabase/            # SQL-миграция (clients, reports)

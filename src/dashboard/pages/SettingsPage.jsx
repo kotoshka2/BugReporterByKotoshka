@@ -71,11 +71,11 @@ export default function SettingsPage({ client, onUpdate }) {
 
     const copySnippet = () => {
         const snippet = `<script>
-  window.BugWidgetConfig = {
+  window.ErroraWidgetConfig = {
     apiKey: '${client?.api_key || 'YOUR_API_KEY'}'
   };
 </script>
-<script src="https://today-is-friday.tech/bug-reporter/widget.js" defer></script>`;
+<script src="https://today-is-friday.tech/errora/errora-widget.iife.js" defer></script>`;
         navigator.clipboard.writeText(snippet);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -181,13 +181,13 @@ export default function SettingsPage({ client, onUpdate }) {
                                 <p><strong>🔗 Magic Link для тестировщиков:</strong></p>
                                 <div className="api-key-box" style={{ marginTop: '8px' }}>
                                     <code style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
-                                        ?brw_secret={secretPassword}
+                                        ?errora_secret={secretPassword}
                                     </code>
                                     <button
                                         type="button"
                                         className="btn btn--sm btn--outline"
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`?brw_secret=${secretPassword}`);
+                                            navigator.clipboard.writeText(`?errora_secret=${secretPassword}`);
                                             setLinkCopied(true);
                                             setTimeout(() => setLinkCopied(false), 2000);
                                         }}
@@ -250,7 +250,7 @@ export default function SettingsPage({ client, onUpdate }) {
                     {/* System bot instructions */}
                     {botMode === 'system' && (
                         <div className="bot-instructions">
-                            <p>1. Начните диалог или добавьте в беседу нашего бота: <a href="https://t.me/BugReporterbykotoshka" target="_blank" rel="noopener">@bug_reporter_by_kotoshka_bot</a></p>
+                            <p>1. Начните диалог или добавьте в беседу нашего бота: <a href="https://t.me/ErroraBot" target="_blank" rel="noopener">@ErroraBot</a></p>
                             <p>2. Отправьте команду <code>/chatid</code></p>
                             <p>3. Скопируйте Chat ID и вставьте ниже</p>
                         </div>

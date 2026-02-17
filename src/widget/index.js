@@ -1,5 +1,5 @@
 /**
- * Bug Report Widget — Entry Point
+ * Errora Widget — Entry Point
  *
  * Embeddable widget that lets users capture screenshots, add comments,
  * and send bug reports to the site owner's Telegram / Notion.
@@ -7,9 +7,9 @@
  * API URL is injected at build time via VITE_API_URL env variable.
  *
  * Usage:
- *   <script src="https://cdn.example.com/widget.iife.js" defer></script>
+ *   <script src="https://cdn.example.com/errora-widget.iife.js" defer></script>
  *   <script>
- *     window.BugWidgetConfig = {
+ *     window.ErroraWidgetConfig = {
  *       apiKey: 'brw_XXXXXXXXXXXX',
  *       position: 'bottom-right', // or 'bottom-left'
  *       mode: 'public',           // 'public' (default) or 'restricted'
@@ -35,7 +35,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 // ── Access Control Helpers ──────────────────────────────
 
-const BRW_STORAGE_KEY = 'brw_access_token';
+const BRW_STORAGE_KEY = 'errora_access_token';
 
 /**
  * Compute SHA-256 hex digest of a string.
@@ -61,7 +61,7 @@ async function sha256(message) {
 async function checkAccess(secretHash) {
     // 1. Check URL parameter
     const params = new URLSearchParams(window.location.search);
-    const urlSecret = params.get('brw_secret');
+    const urlSecret = params.get('errora_secret');
 
     if (urlSecret) {
         const hash = await sha256(urlSecret);
@@ -73,7 +73,7 @@ async function checkAccess(secretHash) {
 
             // Clean URL (remove brw_secret param) to avoid sharing
             const url = new URL(window.location);
-            url.searchParams.delete('brw_secret');
+            url.searchParams.delete('errora_secret');
             window.history.replaceState({}, '', url);
 
             return true;
@@ -104,7 +104,7 @@ const ICON_CAMERA = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-line
 
 // ── Widget Class ────────────────────────────────────────
 
-class BugReportWidget {
+class ErroraWidget {
     constructor(config = {}) {
         this.config = {
             position: config.position || 'bottom-right',
@@ -134,16 +134,16 @@ class BugReportWidget {
                 this.config.mode = serverConfig.mode || 'public';
                 this.config.secretHash = serverConfig.secretHash || '';
             } else {
-                console.warn('[BugReportWidget] Failed to fetch config, defaulting to public mode.');
+                console.warn('[ErroraWidget] Failed to fetch config, defaulting to public mode.');
             }
         } catch (err) {
-            console.warn('[BugReportWidget] Config fetch error, defaulting to public mode:', err.message);
+            console.warn('[ErroraWidget] Config fetch error, defaulting to public mode:', err.message);
         }
 
         // Apply access control
         if (this.config.mode === 'restricted') {
             if (!this.config.secretHash) {
-                console.warn('[BugReportWidget] mode="restricted" but no secretHash configured. Widget disabled.');
+                console.warn('[ErroraWidget] mode="restricted" but no secretHash configured. Widget disabled.');
                 return;
             }
             const hasAccess = await checkAccess(this.config.secretHash);
@@ -161,7 +161,7 @@ class BugReportWidget {
     _init() {
         // Create host element in the actual DOM
         this.host = document.createElement('div');
-        this.host.id = 'bug-report-widget-host';
+        this.host.id = 'errora-widget-host';
         this.shadow = this.host.attachShadow({ mode: 'open' });
 
         // Inject isolated styles
@@ -186,7 +186,7 @@ class BugReportWidget {
 
     _renderTrigger() {
         this.trigger = document.createElement('button');
-        this.trigger.className = `brw-trigger brw-trigger--${this.config.position}`;
+        this.trigger.className = `errora-trigger errora-trigger--${this.config.position}`;
         this.trigger.innerHTML = ICON_BUG;
         this.trigger.setAttribute('aria-label', 'Report a bug');
         this.trigger.addEventListener('click', () => this.open());
@@ -197,7 +197,7 @@ class BugReportWidget {
 
     _renderBackdrop() {
         this.backdrop = document.createElement('div');
-        this.backdrop.className = 'brw-backdrop';
+        this.backdrop.className = 'errora-backdrop';
         this.backdrop.addEventListener('click', () => this.close());
         this.shadow.appendChild(this.backdrop);
     }
@@ -208,40 +208,40 @@ class BugReportWidget {
         const metadata = collectMetadata();
 
         this.modal = document.createElement('div');
-        this.modal.className = 'brw-modal';
+        this.modal.className = 'errora-modal';
         this.modal.innerHTML = `
-      <div class="brw-modal__header">
-        <span class="brw-modal__title">🐞 Сообщить о баге</span>
-        <button class="brw-modal__close" aria-label="Close">✕</button>
+      <div class="errora-modal__header">
+        <span class="errora-modal__title">🐞 Errora</span>
+        <button class="errora-modal__close" aria-label="Close">✕</button>
       </div>
-      <div class="brw-modal__body">
-        <div class="brw-screenshot-area" id="brw-screenshot-area">
-          <div class="brw-screenshot-area__placeholder">
+      <div class="errora-modal__body">
+        <div class="errora-screenshot-area" id="errora-screenshot-area">
+          <div class="errora-screenshot-area__placeholder">
             ${ICON_CAMERA}
             <span>Нажмите, чтобы сделать скриншот</span>
           </div>
         </div>
-        <textarea class="brw-textarea" id="brw-comment" placeholder="Опишите проблему…" rows="3"></textarea>
-        <div class="brw-meta">
-          <div class="brw-meta__row"><span class="brw-meta__label">Browser:</span><span>${metadata.browser}</span></div>
-          <div class="brw-meta__row"><span class="brw-meta__label">OS:</span><span>${metadata.os}</span></div>
-          <div class="brw-meta__row"><span class="brw-meta__label">Screen:</span><span>${metadata.screenSize}</span></div>
-          <div class="brw-meta__row"><span class="brw-meta__label">URL:</span><span style="word-break:break-all">${metadata.url}</span></div>
+        <textarea class="errora-textarea" id="errora-comment" placeholder="Опишите проблему…" rows="3"></textarea>
+        <div class="errora-meta">
+          <div class="errora-meta__row"><span class="errora-meta__label">Browser:</span><span>${metadata.browser}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">OS:</span><span>${metadata.os}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">Screen:</span><span>${metadata.screenSize}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">URL:</span><span style="word-break:break-all">${metadata.url}</span></div>
         </div>
       </div>
-      <div class="brw-modal__footer">
-        <button class="brw-btn brw-btn--ghost" id="brw-cancel">Отмена</button>
-        <button class="brw-btn brw-btn--primary" id="brw-submit">
+      <div class="errora-modal__footer">
+        <button class="errora-btn errora-btn--ghost" id="errora-cancel">Отмена</button>
+        <button class="errora-btn errora-btn--primary" id="errora-submit">
           Отправить
         </button>
       </div>
     `;
 
         // Attach event listeners
-        this.modal.querySelector('.brw-modal__close').addEventListener('click', () => this.close());
-        this.modal.querySelector('#brw-cancel').addEventListener('click', () => this.close());
-        this.modal.querySelector('#brw-submit').addEventListener('click', () => this._submit());
-        this.modal.querySelector('#brw-screenshot-area').addEventListener('click', () => this._startScreenshotCapture());
+        this.modal.querySelector('.errora-modal__close').addEventListener('click', () => this.close());
+        this.modal.querySelector('#errora-cancel').addEventListener('click', () => this.close());
+        this.modal.querySelector('#errora-submit').addEventListener('click', () => this._submit());
+        this.modal.querySelector('#errora-screenshot-area').addEventListener('click', () => this._startScreenshotCapture());
 
         this.shadow.appendChild(this.modal);
     }
@@ -255,8 +255,8 @@ class BugReportWidget {
         // Refresh metadata each time modal opens
         this._refreshMetadata();
 
-        this.backdrop.classList.add('brw-backdrop--visible');
-        this.modal.classList.add('brw-modal--visible');
+        this.backdrop.classList.add('errora-backdrop--visible');
+        this.modal.classList.add('errora-modal--visible');
         this.trigger.style.display = 'none';
     }
 
@@ -264,8 +264,8 @@ class BugReportWidget {
         if (!this.isOpen) return;
         this.isOpen = false;
 
-        this.backdrop.classList.remove('brw-backdrop--visible');
-        this.modal.classList.remove('brw-modal--visible');
+        this.backdrop.classList.remove('errora-backdrop--visible');
+        this.modal.classList.remove('errora-modal--visible');
         this.trigger.style.display = '';
 
         // Reset state
@@ -276,13 +276,13 @@ class BugReportWidget {
 
     _refreshMetadata() {
         const meta = collectMetadata();
-        const metaEl = this.modal.querySelector('.brw-meta');
+        const metaEl = this.modal.querySelector('.errora-meta');
         if (metaEl) {
             metaEl.innerHTML = `
-        <div class="brw-meta__row"><span class="brw-meta__label">Browser:</span><span>${meta.browser}</span></div>
-        <div class="brw-meta__row"><span class="brw-meta__label">OS:</span><span>${meta.os}</span></div>
-        <div class="brw-meta__row"><span class="brw-meta__label">Screen:</span><span>${meta.screenSize}</span></div>
-        <div class="brw-meta__row"><span class="brw-meta__label">URL:</span><span style="word-break:break-all">${meta.url}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">Browser:</span><span>${meta.browser}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">OS:</span><span>${meta.os}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">Screen:</span><span>${meta.screenSize}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">URL:</span><span style="word-break:break-all">${meta.url}</span></div>
       `;
         }
     }
@@ -291,8 +291,8 @@ class BugReportWidget {
 
     async _startScreenshotCapture() {
         // Hide modal for clean screenshot
-        this.modal.classList.remove('brw-modal--visible');
-        this.backdrop.classList.remove('brw-backdrop--visible');
+        this.modal.classList.remove('errora-modal--visible');
+        this.backdrop.classList.remove('errora-backdrop--visible');
 
         // Wait for modal animation to complete
         await this._wait(350);
@@ -302,8 +302,8 @@ class BugReportWidget {
 
         if (!rect) {
             // User cancelled, re-show modal
-            this.modal.classList.add('brw-modal--visible');
-            this.backdrop.classList.add('brw-backdrop--visible');
+            this.modal.classList.add('errora-modal--visible');
+            this.backdrop.classList.add('errora-backdrop--visible');
             return;
         }
 
@@ -318,27 +318,27 @@ class BugReportWidget {
         this._showScreenshotPreview(cropped);
 
         // Re-show modal
-        this.modal.classList.add('brw-modal--visible');
-        this.backdrop.classList.add('brw-backdrop--visible');
+        this.modal.classList.add('errora-modal--visible');
+        this.backdrop.classList.add('errora-backdrop--visible');
     }
 
     _showScreenshotPreview(dataUrl) {
-        const area = this.modal.querySelector('#brw-screenshot-area');
+        const area = this.modal.querySelector('#errora-screenshot-area');
         area.innerHTML = `<img src="${dataUrl}" alt="Screenshot preview" />`;
     }
 
     // ── Submit Report ──
 
     async _submit() {
-        const comment = this.modal.querySelector('#brw-comment').value.trim();
+        const comment = this.modal.querySelector('#errora-comment').value.trim();
         if (!comment && !this.screenshotDataUrl) {
             this._showToast('Добавьте комментарий или скриншот', 'error');
             return;
         }
 
-        const submitBtn = this.modal.querySelector('#brw-submit');
+        const submitBtn = this.modal.querySelector('#errora-submit');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="brw-spinner"></span> Отправка…';
+        submitBtn.innerHTML = '<span class="errora-spinner"></span> Отправка…';
 
         try {
             const metadata = collectMetadata();
@@ -352,7 +352,7 @@ class BugReportWidget {
             this.close();
             this._showToast('Баг-репорт отправлен! Спасибо 🎉', 'success');
         } catch (err) {
-            console.error('[BugReportWidget] Submit failed:', err);
+            console.error('[ErroraWidget] Submit failed:', err);
             this._showToast('Ошибка отправки. Попробуйте ещё раз.', 'error');
         } finally {
             submitBtn.disabled = false;
@@ -364,7 +364,7 @@ class BugReportWidget {
 
     _showToast(message, type = 'success') {
         const toast = document.createElement('div');
-        toast.className = `brw-toast brw-toast--${type}`;
+        toast.className = `errora-toast errora-toast--${type}`;
         toast.textContent = message;
         this.shadow.appendChild(toast);
 
@@ -375,15 +375,15 @@ class BugReportWidget {
     // ── Helpers ──
 
     _resetForm() {
-        const textarea = this.modal.querySelector('#brw-comment');
+        const textarea = this.modal.querySelector('#errora-comment');
         if (textarea) textarea.value = '';
 
         this.screenshotDataUrl = null;
 
-        const area = this.modal.querySelector('#brw-screenshot-area');
+        const area = this.modal.querySelector('#errora-screenshot-area');
         if (area) {
             area.innerHTML = `
-        <div class="brw-screenshot-area__placeholder">
+        <div class="errora-screenshot-area__placeholder">
           ${ICON_CAMERA}
           <span>Нажмите, чтобы сделать скриншот</span>
         </div>
@@ -399,8 +399,8 @@ class BugReportWidget {
 // ── Auto-Init ──
 
 function init() {
-    const config = window.BugWidgetConfig || {};
-    window.__bugReportWidget = new BugReportWidget(config);
+    const config = window.ErroraWidgetConfig || {};
+    window.__erroraWidget = new ErroraWidget(config);
 }
 
 if (document.readyState === 'loading') {
@@ -409,4 +409,4 @@ if (document.readyState === 'loading') {
     init();
 }
 
-export default BugReportWidget;
+export default ErroraWidget;

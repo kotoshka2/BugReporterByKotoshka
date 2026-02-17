@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bug Report Widget — Demo</title>
+  <title>Errora Widget — Demo</title>
   <style>
     * {
       margin: 0;
@@ -28,6 +28,7 @@
       font-size: 2.5rem;
       background: linear-gradient(135deg, #6366f1, #a78bfa);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 12px;
     }
@@ -121,7 +122,7 @@
 
 <body>
   <div class="demo-header">
-    <h1>🐞 Bug Report Widget</h1>
+    <h1>🐞 Errora Widget</h1>
     <p>Легковесный встраиваемый виджет для сбора баг-репортов со скриншотами. Нажмите кнопку в правом нижнем углу, чтобы
       попробовать.</p>
   </div>
@@ -171,7 +172,7 @@
 
   <!-- Widget config -->
   <script>
-    window.BugWidgetConfig = {
+    window.ErroraWidgetConfig = {
       apiKey: 'brw_fMuCCwfCjlstO9vTzLlj9qvZDk6b9JJl', // valid local demo key
       position: 'bottom-right',
       // mode & secretHash are now fetched from the server via /api/config

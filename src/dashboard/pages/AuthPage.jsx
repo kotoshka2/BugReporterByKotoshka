@@ -48,7 +48,7 @@ export default function AuthPage() {
             <div className="auth-card">
                 <div className="auth-header">
                     <span className="auth-logo">🐞</span>
-                    <h1>Bug Report Widget</h1>
+                    <h1>Errora</h1>
                     <p>{isLogin ? 'Войдите в свой аккаунт' : 'Создайте аккаунт'}</p>
                 </div>
 

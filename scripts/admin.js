@@ -1,5 +1,5 @@
 /**
- * Admin CLI — управление клиентами Bug Report Widget
+ * Admin CLI — управление клиентами Errora
  *
  * Использование:
  *   node scripts/admin.js add "Client Name" --tg-token=XXX --tg-chat=YYY
@@ -30,7 +30,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 // ── Generate a random API key ──
 function generateApiKey() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const prefix = 'brw_';
+    const prefix = 'err_';
     let key = prefix;
     for (let i = 0; i < 32; i++) {
         key += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -95,12 +95,12 @@ async function addClient(name, flags) {
     console.log('📋 Сниппет для клиента:');
     console.log('');
     console.log(`   <script>`);
-    console.log(`     window.BugWidgetConfig = {`);
+    console.log(`     window.ErroraWidgetConfig = {`);
     console.log(`       apiUrl: 'https://YOUR-WORKER.workers.dev/api/report',`);
     console.log(`       apiKey: '${created.api_key}'`);
     console.log(`     };`);
     console.log(`   </script>`);
-    console.log(`   <script src="https://cdn.your-domain.com/widget.iife.js" defer></script>`);
+    console.log(`   <script src="https://cdn.your-domain.com/errora-widget.iife.js" defer></script>`);
     console.log('');
 }
 
@@ -160,7 +160,7 @@ async function main() {
             await listClients();
             break;
         default:
-            console.log('Bug Report Widget — Admin CLI');
+            console.log('Errora — Admin CLI');
             console.log('');
             console.log('Commands:');
             console.log('  add "Name" --tg-token=X --tg-chat=Y   Add a new client');

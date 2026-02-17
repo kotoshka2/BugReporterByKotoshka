@@ -1,5 +1,5 @@
 -- ============================================
--- Bug Report Widget — Supabase Database Schema
+-- Errora — Supabase Database Schema
 -- ============================================
 
 -- Таблица клиентов (мульти-тенантность)

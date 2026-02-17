@@ -18,7 +18,7 @@ export default function LandingPage() {
                 <nav className="landing__nav">
                     <div className="landing__logo">
                         <span>🐞</span>
-                        <h1>Bug Reporter</h1>
+                        <h1>Errora</h1>
                     </div>
                     <button className="btn btn--outline btn--sm" onClick={() => navigate('/auth')}>
                         Войти
@@ -112,7 +112,7 @@ export default function LandingPage() {
 
             {/* Footer */}
             <footer className="landing__footer">
-                <p>Bug Reporter © {new Date().getFullYear()} · Сделано с 🐞</p>
+                <p>Errora © {new Date().getFullYear()} · Сделано с 🐞</p>
             </footer>
         </div>
     );

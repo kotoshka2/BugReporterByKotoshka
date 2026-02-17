@@ -6,8 +6,8 @@ export default defineConfig({
     build: {
         lib: {
             entry: resolve(__dirname, 'src/widget/index.js'),
-            name: 'BugReportWidget',
-            fileName: 'widget',
+            name: 'ErroraWidget',
+            fileName: 'errora-widget',
             formats: ['iife'],
         },
         rollupOptions: {

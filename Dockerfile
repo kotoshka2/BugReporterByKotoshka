@@ -30,10 +30,10 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built dashboard files
-COPY --from=build /app/dist/dashboard /usr/share/nginx/html/bug-reporter
+COPY --from=build /app/dist/dashboard /usr/share/nginx/html/errora
 
 # Copy built widget file
-COPY --from=build /app/dist/widget/widget.iife.js /usr/share/nginx/html/bug-reporter/widget.js
+COPY --from=build /app/dist/widget/errora-widget.iife.js /usr/share/nginx/html/errora/errora-widget.iife.js
 
 EXPOSE 80
 
