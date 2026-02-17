@@ -11,15 +11,15 @@
 export function showCropOverlay(shadowRoot) {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
-        overlay.className = 'brw-crop-overlay';
+        overlay.className = 'errora-crop-overlay';
 
         const hint = document.createElement('div');
-        hint.className = 'brw-crop-overlay__hint';
+        hint.className = 'errora-crop-overlay__hint';
         hint.textContent = 'Выделите область экрана для скриншота. ESC — отмена.';
         overlay.appendChild(hint);
 
         const selection = document.createElement('div');
-        selection.className = 'brw-crop-overlay__selection';
+        selection.className = 'errora-crop-overlay__selection';
         selection.style.display = 'none';
         overlay.appendChild(selection);
 
