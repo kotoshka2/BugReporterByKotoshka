@@ -28,7 +28,11 @@ import { captureScreenshot, cropScreenshot } from './screenshot.js';
 import { showCropOverlay } from './crop.js';
 import { collectMetadata } from './metadata.js';
 import { submitReport } from './api.js';
+import { initLogger, getLogs } from './logger.js';
 import widgetStyles from './styles.css?inline';
+
+// Start capturing console logs as early as possible
+initLogger();
 
 // API URL injected at build time by Vite
 const API_URL = import.meta.env.VITE_API_URL;
@@ -346,6 +350,7 @@ class ErroraWidget {
                 comment,
                 screenshot: this.screenshotDataUrl || null,
                 metadata,
+                consoleLogs: getLogs(),
                 apiKey: this.config.apiKey,
             });
 

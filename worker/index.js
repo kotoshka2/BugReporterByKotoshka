@@ -48,7 +48,7 @@ export default {
 async function handleReport(request, env) {
     try {
         const body = await request.json();
-        const { comment, screenshot, metadata, apiKey } = body;
+        const { comment, screenshot, metadata, apiKey, consoleLogs } = body;
 
         // ── Validate API Key ──
         if (!apiKey) {
@@ -92,6 +92,7 @@ async function handleReport(request, env) {
             comment: comment || '(no comment)',
             screenshotUrl,
             metadata: metadata || {},
+            consoleLogs: Array.isArray(consoleLogs) ? consoleLogs : [],
             receivedAt: new Date().toISOString(),
         };
 
@@ -223,6 +224,7 @@ async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, en
                 browser: meta.browser || null,
                 os: meta.os || null,
                 screen_size: meta.screenSize || null,
+                console_logs: report.consoleLogs.length > 0 ? report.consoleLogs : null,
                 tg_sent: tgSent,
                 notion_sent: notionSent,
             }),
@@ -281,7 +283,7 @@ async function sendToTelegram(report, client, env) {
     const token = client.tg_bot_token || env.SYSTEM_TG_BOT_TOKEN;
     const meta = report.metadata;
 
-    const caption = [
+    let caption = [
         '🐞 *Новый баг-репорт*',
         '',
         `💬 *Комментарий:* ${escapeMarkdown(report.comment)}`,
@@ -292,6 +294,17 @@ async function sendToTelegram(report, client, env) {
         `📐 *Экран:* ${escapeMarkdown(meta.screenSize || 'N/A')}`,
         `🕐 *Время:* ${report.receivedAt}`,
     ].join('\n');
+
+    // Append console logs section if present
+    if (report.consoleLogs && report.consoleLogs.length > 0) {
+        const logsSection = report.consoleLogs
+            .slice(-15) // last 15 entries for TG readability
+            .map(l => `\`[${l.level.toUpperCase()}]\` ${escapeMarkdown(l.message.slice(0, 120))}`)
+            .join('\n');
+        const section = `\n\n📋 *Консоль (последние ${Math.min(report.consoleLogs.length, 15)}):*\n${logsSection}`;
+        // TG caption max is 1024 for photos, 4096 for messages
+        caption += section;
+    }
 
     if (report.screenshotUrl) {
         const url = `https://api.telegram.org/bot${token}/sendPhoto`;
