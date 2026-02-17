@@ -344,7 +344,8 @@ async function sendToTelegram(report, client, env) {
 
 function escapeMarkdown(text) {
     if (!text) return '';
-    return text.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+    // Telegram Markdown v1 only treats _ * ` [ as special
+    return text.replace(/([_*`\[])/g, '\\$1');
 }
 
 // ────────────────────────────────────────────

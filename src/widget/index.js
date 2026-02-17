@@ -24,7 +24,7 @@
  *   Changing secretHash in config revokes all previous access.
  */
 
-import { captureScreenshot, cropScreenshot } from './screenshot.js';
+import { captureScreenshot, captureNativeScreenshot, isNativeScreenshotSupported, cropScreenshot } from './screenshot.js';
 import { showCropOverlay } from './crop.js';
 import { collectMetadata } from './metadata.js';
 import { submitReport } from './api.js';
@@ -328,7 +328,48 @@ class ErroraWidget {
 
     _showScreenshotPreview(dataUrl) {
         const area = this.modal.querySelector('#errora-screenshot-area');
-        area.innerHTML = `<img src="${dataUrl}" alt="Screenshot preview" />`;
+        const retakeHtml = isNativeScreenshotSupported()
+            ? `<button class="errora-retake-btn" title="Скриншот выглядит криво? Нажмите для точного снимка">
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                 HD
+               </button>`
+            : '';
+        area.innerHTML = `
+            <img src="${dataUrl}" alt="Screenshot preview" />
+            ${retakeHtml}
+        `;
+
+        // Wire up retake button
+        const retakeBtn = area.querySelector('.errora-retake-btn');
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Don't trigger the area click (new crop)
+                this._retakeNative();
+            });
+        }
+    }
+
+    /**
+     * Retake screenshot using native getDisplayMedia (pixel-perfect).
+     */
+    async _retakeNative() {
+        // Hide widget for clean capture
+        this.modal.classList.remove('errora-modal--visible');
+        this.backdrop.classList.remove('errora-backdrop--visible');
+        await this._wait(200);
+
+        try {
+            const dataUrl = await captureNativeScreenshot();
+            this.screenshotDataUrl = dataUrl;
+            this._showScreenshotPreview(dataUrl);
+            this._showToast('Скриншот обновлён (HD) ✨', 'success');
+        } catch (err) {
+            console.warn('[ErroraWidget] Native screenshot failed:', err);
+            this._showToast('Не удалось сделать снимок. Попробуйте выбрать "Эта вкладка".', 'error');
+        } finally {
+            this.modal.classList.add('errora-modal--visible');
+            this.backdrop.classList.add('errora-backdrop--visible');
+        }
     }
 
     // ── Submit Report ──

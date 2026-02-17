@@ -203,6 +203,42 @@
   border-radius: 8px;
 }
 
+/* HD Retake button (overlay on screenshot preview) */
+.errora-retake-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.85);
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s, transform 0.15s;
+  z-index: 1;
+}
+
+.errora-retake-btn:hover {
+  background: rgba(99, 102, 241, 1);
+  transform: scale(1.05);
+}
+
+.errora-retake-btn:active {
+  transform: scale(0.95);
+}
+
+.errora-retake-btn svg {
+  flex-shrink: 0;
+}
+
 /* Textarea */
 .errora-textarea {
   width: 100%;
