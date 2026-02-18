@@ -45,7 +45,15 @@ const BRW_STORAGE_KEY = 'errora_access_token';
  * Compute SHA-256 hex digest of a string.
  * Uses the native Web Crypto API (available in all modern browsers).
  */
+/**
+ * Compute SHA-256 hex digest of a string.
+ * Uses the native Web Crypto API (available in all modern browsers in Secure Contexts).
+ */
 async function sha256(message) {
+    if (!window.crypto || !window.crypto.subtle) {
+        console.error('[ErroraWidget] Web Crypto API not available. Widget requires HTTPS or localhost.');
+        return null;
+    }
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -54,37 +62,59 @@ async function sha256(message) {
 
 /**
  * Check if the user has access in 'restricted' mode.
- *
- * 1. Check URL for ?brw_secret=<password>  → hash & compare → persist.
- * 2. Check localStorage for a previously stored token → hash & compare.
- * 3. If secretHash changed in config, stored tokens become invalid.
- *
- * @param {string} secretHash - SHA-256 hex hash of the secret password.
- * @returns {Promise<boolean>} true if access is granted.
  */
 async function checkAccess(secretHash) {
-    // 1. Check URL parameter
-    const params = new URLSearchParams(window.location.search);
-    const urlSecret = params.get('errora_secret');
+    let urlSecret = null;
 
+    // 1. Check Standard Query Params (?errora_secret=...)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('errora_secret')) {
+        urlSecret = params.get('errora_secret');
+    }
+
+    // 2. Check Hash Query Params (e.g. /#/page?errora_secret=...)
+    if (!urlSecret && window.location.hash.includes('errora_secret=')) {
+        const hash = window.location.hash;
+        const hashParams = new URLSearchParams(hash.split('?')[1] || ''); // Extract part after first ?
+        if (hashParams.has('errora_secret')) {
+            urlSecret = hashParams.get('errora_secret');
+        }
+    }
+
+    // A. Validate URL Secret
     if (urlSecret) {
+        console.log('[ErroraWidget] Found secret in URL, validating...');
         const hash = await sha256(urlSecret);
         if (hash === secretHash) {
-            // Persist the plain token so user stays authorized
+            console.log('[ErroraWidget] Secret valid! Access granted.');
+            // Persist
             try {
                 localStorage.setItem(BRW_STORAGE_KEY, urlSecret);
             } catch (_) { /* localStorage may be unavailable */ }
 
-            // Clean URL (remove brw_secret param) to avoid sharing
-            const url = new URL(window.location);
-            url.searchParams.delete('errora_secret');
-            window.history.replaceState({}, '', url);
+            // Clean URL (remove param to avoid sharing)
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('errora_secret');
+            // Also try cleaning hash params if present there
+            if (window.location.hash.includes('errora_secret=')) {
+                // Determine if hash has query part
+                const parts = window.location.hash.split('?');
+                if (parts.length > 1) {
+                    const hParams = new URLSearchParams(parts[1]);
+                    hParams.delete('errora_secret');
+                    const newHash = parts[0] + (hParams.toString() ? '?' + hParams.toString() : '');
+                    cleanUrl.hash = newHash;
+                }
+            }
+            window.history.replaceState({}, '', cleanUrl);
 
             return true;
+        } else {
+            console.warn('[ErroraWidget] URL secret hash mismatch. Denied.');
         }
     }
 
-    // 2. Check localStorage for previously stored token
+    // B. Check storage
     try {
         const storedToken = localStorage.getItem(BRW_STORAGE_KEY);
         if (storedToken) {
@@ -92,7 +122,8 @@ async function checkAccess(secretHash) {
             if (hash === secretHash) {
                 return true;
             }
-            // Hash mismatch → secret was rotated, clear old token
+            // Hash mismatch -> maybe secret rotated or stored token is invalid
+            console.warn('[ErroraWidget] Stored secret invalid/expired. Removing.');
             localStorage.removeItem(BRW_STORAGE_KEY);
         }
     } catch (_) { /* localStorage may be unavailable */ }

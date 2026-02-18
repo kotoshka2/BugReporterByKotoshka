@@ -173,13 +173,14 @@ export default function SettingsPage({ client, onUpdate }) {
                                     <p><strong>🔗 Magic Link для тестировщиков:</strong></p>
                                     <div className="api-key-box" style={{ marginTop: '8px' }}>
                                         <code style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
-                                            ?errora_secret={secretPassword}
+                                            ?errora_secret={encodeURIComponent(secretPassword)}
                                         </code>
                                         <button
                                             type="button"
                                             className="btn btn--sm btn--outline"
                                             onClick={() => {
-                                                navigator.clipboard.writeText(`?errora_secret=${secretPassword}`);
+                                                const url = `?errora_secret=${encodeURIComponent(secretPassword)}`;
+                                                navigator.clipboard.writeText(url);
                                                 setLinkCopied(true);
                                                 setTimeout(() => setLinkCopied(false), 2000);
                                             }}
