@@ -62,20 +62,34 @@ async function sha256(message) {
  * Check if the user has access in 'restricted' mode.
  */
 async function checkAccess(secretHash) {
+    console.log('[ErroraWidget] checkAccess called with hash:', secretHash);
+    console.log('[ErroraWidget] Current Location:', window.location.href);
+    console.log('[ErroraWidget] Search:', window.location.search);
+    console.log('[ErroraWidget] Hash:', window.location.hash);
+
     let urlSecret = null;
 
     // 1. Check Standard Query Params (?errora_secret=...)
     const params = new URLSearchParams(window.location.search);
     if (params.has('errora_secret')) {
         urlSecret = params.get('errora_secret');
+        console.log('[ErroraWidget] Found in search:', urlSecret);
     }
 
     // 2. Check Hash Query Params (e.g. /#/page?errora_secret=...)
     if (!urlSecret && window.location.hash.includes('errora_secret=')) {
         const hash = window.location.hash;
-        const hashParams = new URLSearchParams(hash.split('?')[1] || ''); // Extract part after first ?
-        if (hashParams.has('errora_secret')) {
-            urlSecret = hashParams.get('errora_secret');
+        console.log('[ErroraWidget] Checking hash for secret...');
+        // Handle cases like #/page?foo=bar&errora_secret=...
+        // Split by ? to get the query part of the hash
+        const hashParts = hash.split('?');
+        if (hashParts.length > 1) {
+            const hashQuery = hashParts[1];
+            const hashParams = new URLSearchParams(hashQuery);
+            if (hashParams.has('errora_secret')) {
+                urlSecret = hashParams.get('errora_secret');
+                console.log('[ErroraWidget] Found in hash:', urlSecret);
+            }
         }
     }
 
