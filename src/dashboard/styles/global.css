@@ -999,3 +999,122 @@ a:hover {
         margin: 40px auto 60px;
     }
 }
+
+/* ────────────────────────────────────────────
+   Integrations Page
+   ──────────────────────────────────────────── */
+.page__subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-top: -16px;
+    margin-bottom: 28px;
+}
+
+.integrations-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.integration-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: var(--transition);
+    backdrop-filter: blur(20px);
+}
+
+.integration-card:hover {
+    border-color: rgba(108, 99, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.integration-card--active {
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.integration-card--active:hover {
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.integration-card--disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.integration-card--disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border);
+}
+
+.integration-card__icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 99, 255, 0.08);
+    border-radius: var(--radius-sm);
+}
+
+.integration-card__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.integration-card__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.integration-card__name {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.integration-card__desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.integration-card__arrow {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.integration-card:hover .integration-card__arrow {
+    color: var(--accent-light);
+    transform: translateX(4px);
+}
+
+.integration-back-btn {
+    margin-bottom: 16px;
+}
+
+/* ── Mobile: Integrations ── */
+@media (max-width: 768px) {
+    .integration-card {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .integration-card__icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.5rem;
+    }
+}

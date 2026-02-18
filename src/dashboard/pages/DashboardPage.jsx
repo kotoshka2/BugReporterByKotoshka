@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import SettingsPage from './SettingsPage';
 import ReportsPage from './ReportsPage';
+import IntegrationsPage from './IntegrationsPage';
 
 export default function DashboardPage({ session }) {
     const [client, setClient] = useState(null);
@@ -58,6 +59,9 @@ export default function DashboardPage({ session }) {
                     <NavLink to="/dashboard/settings" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
                         ⚙️ Настройки
                     </NavLink>
+                    <NavLink to="/dashboard/integrations" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
+                        🔌 Интеграции
+                    </NavLink>
                     <NavLink to="/dashboard/reports" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
                         📋 Репорты
                     </NavLink>
@@ -75,6 +79,7 @@ export default function DashboardPage({ session }) {
             <main className="dashboard__main">
                 <Routes>
                     <Route path="settings" element={<SettingsPage client={client} onUpdate={fetchClient} />} />
+                    <Route path="integrations/*" element={<IntegrationsPage client={client} onUpdate={fetchClient} />} />
                     <Route path="reports" element={<ReportsPage client={client} />} />
                     <Route path="*" element={<Navigate to="settings" replace />} />
                 </Routes>
