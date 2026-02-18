@@ -32,12 +32,10 @@ import { initLogger, getLogs } from './logger.js';
 import widgetStyles from './styles.css?inline';
 
 // Start capturing console logs as early as possible
-console.log('[ErroraWidget] Script executing...');
 initLogger();
 
 // API URL injected at build time by Vite
 const API_URL = import.meta.env.VITE_API_URL;
-console.log('[ErroraWidget] API_URL:', API_URL);
 
 // ── Access Control Helpers ──────────────────────────────
 
@@ -62,24 +60,17 @@ async function sha256(message) {
  * Check if the user has access in 'restricted' mode.
  */
 async function checkAccess(secretHash) {
-    console.log('[ErroraWidget] checkAccess called with hash:', secretHash);
-    console.log('[ErroraWidget] Current Location:', window.location.href);
-    console.log('[ErroraWidget] Search:', window.location.search);
-    console.log('[ErroraWidget] Hash:', window.location.hash);
-
     let urlSecret = null;
 
     // 1. Check Standard Query Params (?errora_secret=...)
     const params = new URLSearchParams(window.location.search);
     if (params.has('errora_secret')) {
         urlSecret = params.get('errora_secret');
-        console.log('[ErroraWidget] Found in search:', urlSecret);
     }
 
     // 2. Check Hash Query Params (e.g. /#/page?errora_secret=...)
     if (!urlSecret && window.location.hash.includes('errora_secret=')) {
         const hash = window.location.hash;
-        console.log('[ErroraWidget] Checking hash for secret...');
         // Handle cases like #/page?foo=bar&errora_secret=...
         // Split by ? to get the query part of the hash
         const hashParts = hash.split('?');
@@ -88,17 +79,14 @@ async function checkAccess(secretHash) {
             const hashParams = new URLSearchParams(hashQuery);
             if (hashParams.has('errora_secret')) {
                 urlSecret = hashParams.get('errora_secret');
-                console.log('[ErroraWidget] Found in hash:', urlSecret);
             }
         }
     }
 
     // A. Validate URL Secret
     if (urlSecret) {
-        console.log('[ErroraWidget] Found secret in URL, validating...');
         const hash = await sha256(urlSecret);
         if (hash === secretHash) {
-            console.log('[ErroraWidget] Secret valid! Access granted.');
             // Persist
             try {
                 localStorage.setItem(BRW_STORAGE_KEY, urlSecret);
@@ -121,8 +109,6 @@ async function checkAccess(secretHash) {
             window.history.replaceState({}, '', cleanUrl);
 
             return true;
-        } else {
-            console.warn('[ErroraWidget] URL secret hash mismatch. Denied.');
         }
     }
 
@@ -135,7 +121,6 @@ async function checkAccess(secretHash) {
                 return true;
             }
             // Hash mismatch -> maybe secret rotated or stored token is invalid
-            console.warn('[ErroraWidget] Stored secret invalid/expired. Removing.');
             localStorage.removeItem(BRW_STORAGE_KEY);
         }
     } catch (_) { /* localStorage may be unavailable */ }
@@ -153,7 +138,6 @@ const ICON_CAMERA = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-line
 
 class ErroraWidget {
     constructor(config = {}) {
-        console.log('[ErroraWidget] Constructor called');
         this.config = {
             position: config.position || 'bottom-right',
             apiKey: config.apiKey || '',
@@ -173,15 +157,12 @@ class ErroraWidget {
     // ── Boot (async access gate) ──
 
     async _boot() {
-        console.log('[ErroraWidget] Booting...');
         try {
             // Fetch visibility settings from backend
-            console.log('[ErroraWidget] Fetching config...');
             const fetchUrl = `${API_URL.replace('/api/report', '')}/api/config?apiKey=${encodeURIComponent(this.config.apiKey)}`;
             const resp = await fetch(fetchUrl);
             if (resp.ok) {
                 const serverConfig = await resp.json();
-                console.log('[ErroraWidget] Config fetched:', serverConfig);
                 this.config.mode = serverConfig.mode || 'public';
                 this.config.secretHash = serverConfig.secretHash || '';
             } else {
@@ -192,15 +173,12 @@ class ErroraWidget {
         }
 
         // Apply access control
-        console.log('[ErroraWidget] Mode:', this.config.mode);
         if (this.config.mode === 'restricted') {
             if (!this.config.secretHash) {
                 console.warn('[ErroraWidget] mode="restricted" but no secretHash. Widget disabled.');
                 return;
             }
-            console.log('[ErroraWidget] Checking access...');
             const hasAccess = await checkAccess(this.config.secretHash);
-            console.log('[ErroraWidget] Access result:', hasAccess);
             if (!hasAccess) {
                 // User is not authorized — do not render widget
                 return;
@@ -213,7 +191,6 @@ class ErroraWidget {
     // ── Initialization ──
 
     _init() {
-        console.log('[ErroraWidget] _init() called');
         // Create host element in the actual DOM
         this.host = document.createElement('div');
         this.host.id = 'errora-widget-host';
