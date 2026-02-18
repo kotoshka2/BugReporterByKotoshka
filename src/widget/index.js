@@ -32,6 +32,7 @@ import { initLogger, getLogs } from './logger.js';
 import widgetStyles from './styles.css?inline';
 
 // Start capturing console logs as early as possible
+console.log('[ErroraWidget] Script executing...');
 initLogger();
 
 // API URL injected at build time by Vite
