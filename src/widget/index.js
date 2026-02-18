@@ -37,15 +37,12 @@ initLogger();
 
 // API URL injected at build time by Vite
 const API_URL = import.meta.env.VITE_API_URL;
+console.log('[ErroraWidget] API_URL:', API_URL);
 
 // ── Access Control Helpers ──────────────────────────────
 
 const BRW_STORAGE_KEY = 'errora_access_token';
 
-/**
- * Compute SHA-256 hex digest of a string.
- * Uses the native Web Crypto API (available in all modern browsers).
- */
 /**
  * Compute SHA-256 hex digest of a string.
  * Uses the native Web Crypto API (available in all modern browsers in Secure Contexts).
@@ -142,6 +139,7 @@ const ICON_CAMERA = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-line
 
 class ErroraWidget {
     constructor(config = {}) {
+        console.log('[ErroraWidget] Constructor called');
         this.config = {
             position: config.position || 'bottom-right',
             apiKey: config.apiKey || '',
@@ -154,35 +152,41 @@ class ErroraWidget {
         this.screenshotDataUrl = null;
         this.isOpen = false;
 
-        // Defer initialization: for 'restricted' mode we need
-        // an async access check before rendering anything.
+        // Defer initialization
         this._boot();
     }
 
     // ── Boot (async access gate) ──
 
     async _boot() {
+        console.log('[ErroraWidget] Booting...');
         try {
             // Fetch visibility settings from backend
-            const resp = await fetch(`${API_URL.replace('/api/report', '')}/api/config?apiKey=${encodeURIComponent(this.config.apiKey)}`);
+            console.log('[ErroraWidget] Fetching config...');
+            const fetchUrl = `${API_URL.replace('/api/report', '')}/api/config?apiKey=${encodeURIComponent(this.config.apiKey)}`;
+            const resp = await fetch(fetchUrl);
             if (resp.ok) {
                 const serverConfig = await resp.json();
+                console.log('[ErroraWidget] Config fetched:', serverConfig);
                 this.config.mode = serverConfig.mode || 'public';
                 this.config.secretHash = serverConfig.secretHash || '';
             } else {
                 console.warn('[ErroraWidget] Failed to fetch config, defaulting to public mode.');
             }
         } catch (err) {
-            console.warn('[ErroraWidget] Config fetch error, defaulting to public mode:', err.message);
+            console.error('[ErroraWidget] Config fetch error:', err);
         }
 
         // Apply access control
+        console.log('[ErroraWidget] Mode:', this.config.mode);
         if (this.config.mode === 'restricted') {
             if (!this.config.secretHash) {
-                console.warn('[ErroraWidget] mode="restricted" but no secretHash configured. Widget disabled.');
+                console.warn('[ErroraWidget] mode="restricted" but no secretHash. Widget disabled.');
                 return;
             }
+            console.log('[ErroraWidget] Checking access...');
             const hasAccess = await checkAccess(this.config.secretHash);
+            console.log('[ErroraWidget] Access result:', hasAccess);
             if (!hasAccess) {
                 // User is not authorized — do not render widget
                 return;
@@ -195,6 +199,7 @@ class ErroraWidget {
     // ── Initialization ──
 
     _init() {
+        console.log('[ErroraWidget] _init() called');
         // Create host element in the actual DOM
         this.host = document.createElement('div');
         this.host.id = 'errora-widget-host';
