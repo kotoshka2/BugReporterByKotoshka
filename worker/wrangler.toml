@@ -6,8 +6,12 @@ compatibility_date = "2024-01-01"
 ALLOWED_ORIGINS = "*"
 
 # ── Secrets (set via `wrangler secret put <NAME>`) ──
-# Only Supabase credentials are needed now.
+# Supabase + Notion OAuth credentials.
 # Client-specific TG/Notion tokens are stored in the `clients` DB table.
 #
 #   wrangler secret put SUPABASE_URL
 #   wrangler secret put SUPABASE_KEY
+#   wrangler secret put NOTION_CLIENT_ID
+#   wrangler secret put NOTION_CLIENT_SECRET
+#   wrangler secret put NOTION_REDIRECT_URI
+#   wrangler secret put DASHBOARD_URL

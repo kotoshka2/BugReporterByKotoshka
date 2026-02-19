@@ -14,7 +14,7 @@ const INTEGRATIONS = [
         name: 'Notion',
         icon: '📋',
         description: 'Автоматически создавайте тикеты в Notion.',
-        checkActive: (client) => !!client?.notion_key && !!client?.notion_db_id,
+        checkActive: (client) => !!(client?.notion_access_token || client?.notion_key) && !!client?.notion_db_id,
     },
     {
         id: 'jira',

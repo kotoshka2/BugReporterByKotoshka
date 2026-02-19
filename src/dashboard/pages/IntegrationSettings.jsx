@@ -134,68 +134,121 @@ function TelegramSettings({ client, onUpdate }) {
     );
 }
 
-// ── Notion Settings ──
+// ── Notion Settings (OAuth) ──
 function NotionSettings({ client, onUpdate }) {
-    const [notionKey, setNotionKey] = useState(client?.notion_key || '');
-    const [notionDbId, setNotionDbId] = useState(client?.notion_db_id || '');
-    const [saving, setSaving] = useState(false);
+    const [disconnecting, setDisconnecting] = useState(false);
     const [message, setMessage] = useState('');
+    const navigate = useNavigate();
+    const isConnected = !!(client?.notion_access_token || client?.notion_key);
 
-    const handleSave = async (e) => {
-        e.preventDefault();
-        setSaving(true);
+    // Check for OAuth callback status in URL
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status');
+        const reason = params.get('reason');
+
+        if (status === 'success') {
+            setMessage('Notion подключён! ✅');
+            onUpdate();
+            // Clean URL
+            navigate('/dashboard/integrations/notion', { replace: true });
+        } else if (status === 'error') {
+            const reasons = {
+                token_exchange_failed: 'Ошибка при обмене токена',
+                no_pages_found: 'Не удалось найти доступные страницы',
+                no_pages_shared: 'Вы не поделились ни одной страницей. Пожалуйста, выберите хотя бы одну страницу при авторизации.',
+                db_creation_failed: 'Ошибка при создании базы данных',
+                save_failed: 'Ошибка при сохранении',
+                missing_params: 'Отсутствуют параметры авторизации',
+            };
+            setMessage(`Ошибка: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
+            navigate('/dashboard/integrations/notion', { replace: true });
+        }
+    }, []);
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL.replace('/api/report', '');
+
+    const handleConnect = () => {
+        const url = `${apiBaseUrl}/api/notion/auth?clientId=${encodeURIComponent(client.id)}`;
+        window.location.href = url;
+    };
+
+    const handleDisconnect = async () => {
+        setDisconnecting(true);
         setMessage('');
 
-        const updateData = {
-            notion_key: notionKey || null,
-            notion_db_id: notionDbId || null,
-            updated_at: new Date().toISOString(),
-        };
+        try {
+            const resp = await fetch(`${apiBaseUrl}/api/notion/disconnect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: client.api_key }),
+            });
 
-        const { error } = await supabase
-            .from('clients')
-            .update(updateData)
-            .eq('id', client.id);
-
-        if (error) {
-            setMessage('Ошибка сохранения: ' + error.message);
-        } else {
-            setMessage('Настройки сохранены! ✅');
-            onUpdate();
+            if (resp.ok) {
+                setMessage('Notion отключён ✅');
+                onUpdate();
+            } else {
+                setMessage('Ошибка при отключении');
+            }
+        } catch (err) {
+            setMessage('Ошибка сети: ' + err.message);
         }
-        setSaving(false);
+        setDisconnecting(false);
     };
 
     return (
-        <form onSubmit={handleSave}>
+        <div>
             <div className="card">
                 <h2 className="card__title">📋 Notion</h2>
-                <p className="card__desc">
-                    Автоматически создавайте тикеты в Notion.{' '}
-                    <a href="https://developers.notion.com" target="_blank" rel="noopener">Создать интеграцию →</a>
-                </p>
-                <div className="form-row">
-                    <div className="form-group">
-                        <label htmlFor="notion-key">Integration Secret</label>
-                        <input
-                            id="notion-key"
-                            type="text"
-                            value={notionKey}
-                            onChange={(e) => setNotionKey(e.target.value)}
-                            placeholder="secret_..."
-                        />
+
+                {isConnected ? (
+                    <div className="notion-connected">
+                        <div className="notion-status">
+                            <span className="notion-status__badge">✅ Подключено</span>
+                            {client.notion_workspace_name && (
+                                <span className="notion-status__workspace">
+                                    Workspace: <strong>{client.notion_workspace_name}</strong>
+                                </span>
+                            )}
+                        </div>
+
+                        {client.notion_db_url && (
+                            <a
+                                href={client.notion_db_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn--ghost btn--sm"
+                                style={{ marginTop: '12px', display: 'inline-block' }}
+                            >
+                                🔗 Открыть базу данных в Notion
+                            </a>
+                        )}
+
+                        <div style={{ marginTop: '16px' }}>
+                            <button
+                                onClick={handleDisconnect}
+                                className="btn btn--danger btn--sm"
+                                disabled={disconnecting}
+                            >
+                                {disconnecting ? 'Отключение…' : '🔴 Отключить Notion'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="form-group">
-                        <label htmlFor="notion-db">Database ID</label>
-                        <input
-                            id="notion-db"
-                            type="text"
-                            value={notionDbId}
-                            onChange={(e) => setNotionDbId(e.target.value)}
-                            placeholder="abc123..."
-                        />
+                ) : (
+                    <div className="notion-connect">
+                        <p className="card__desc">
+                            Подключите Notion, чтобы баг-репорты автоматически создавались как записи в вашей базе данных.
+                        </p>
+                        <div className="notion-connect__steps">
+                            <p>1. Нажмите кнопку ниже</p>
+                            <p>2. Выберите страницу для базы данных</p>
+                            <p>3. Готово! База «🐞 Errora Bug Reports» создастся автоматически</p>
+                        </div>
+                        <button onClick={handleConnect} className="btn btn--primary" style={{ marginTop: '16px' }}>
+                            🔗 Подключить Notion
+                        </button>
                     </div>
-                </div>
+                )}
             </div>
 
             {message && (
@@ -203,11 +256,7 @@ function NotionSettings({ client, onUpdate }) {
                     {message}
                 </div>
             )}
-
-            <button type="submit" className="btn btn--primary" disabled={saving}>
-                {saving ? 'Сохранение…' : 'Сохранить'}
-            </button>
-        </form>
+        </div>
     );
 }
 

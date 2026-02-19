@@ -8,9 +8,13 @@
  * 4. Logs the report in the `reports` table
  *
  * Environment Variables (set via wrangler.toml or `wrangler secret put`):
- *   SUPABASE_URL        — https://xxx.supabase.co
- *   SUPABASE_KEY        — service_role key (bypasses RLS)
- *   ALLOWED_ORIGINS     — Comma-separated list of allowed origins (optional, * for any)
+ *   SUPABASE_URL          — https://xxx.supabase.co
+ *   SUPABASE_KEY          — service_role key (bypasses RLS)
+ *   ALLOWED_ORIGINS       — Comma-separated list of allowed origins (optional, * for any)
+ *   NOTION_CLIENT_ID      — Notion OAuth public integration client ID
+ *   NOTION_CLIENT_SECRET  — Notion OAuth client secret
+ *   NOTION_REDIRECT_URI   — OAuth callback URL (this worker's /api/notion/callback)
+ *   DASHBOARD_URL         — Dashboard base URL for post-OAuth redirect
  */
 
 export default {
@@ -30,6 +34,21 @@ export default {
         // ── Route: GET /api/config ──
         if (url.pathname === '/api/config' && request.method === 'GET') {
             return handleConfig(request, env, url);
+        }
+
+        // ── Route: GET /api/notion/auth — Start Notion OAuth ──
+        if (url.pathname === '/api/notion/auth' && request.method === 'GET') {
+            return handleNotionAuth(request, env, url);
+        }
+
+        // ── Route: GET /api/notion/callback — Notion OAuth callback ──
+        if (url.pathname === '/api/notion/callback' && request.method === 'GET') {
+            return handleNotionCallback(request, env, url);
+        }
+
+        // ── Route: POST /api/notion/disconnect — Disconnect Notion ──
+        if (url.pathname === '/api/notion/disconnect' && request.method === 'POST') {
+            return handleNotionDisconnect(request, env);
         }
 
         // ── Health check ──
@@ -103,14 +122,16 @@ async function handleReport(request, env) {
             tasks.push(sendToTelegram(report, client, env));
         }
 
-        if (client.notion_key && client.notion_db_id) {
-            tasks.push(sendToNotion(report, client));
+        const notionToken = client.notion_access_token || client.notion_key;
+        if (notionToken && client.notion_db_id) {
+            tasks.push(sendToNotion(report, client, notionToken));
         }
 
         const results = await Promise.allSettled(tasks);
 
         const tgSent = results[0]?.status === 'fulfilled';
-        const notionSent = client.notion_key
+        const hasNotion = !!(client.notion_access_token || client.notion_key);
+        const notionSent = hasNotion
             ? results[tasks.length - 1]?.status === 'fulfilled'
             : false;
 
@@ -352,7 +373,7 @@ function escapeMarkdown(text) {
 // Notion Integration
 // ────────────────────────────────────────────
 
-async function sendToNotion(report, client) {
+async function sendToNotion(report, client, token) {
     const meta = report.metadata;
 
     const properties = {
@@ -433,7 +454,7 @@ async function sendToNotion(report, client) {
     const resp = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${client.notion_key}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             'Notion-Version': '2022-06-28',
         },
@@ -447,6 +468,215 @@ async function sendToNotion(report, client) {
     if (!resp.ok) {
         const errText = await resp.text();
         throw new Error(`Notion create page failed: ${errText}`);
+    }
+}
+
+// ────────────────────────────────────────────
+// Notion OAuth: Start Authorization
+// ────────────────────────────────────────────
+
+async function handleNotionAuth(request, env, url) {
+    const clientId = url.searchParams.get('clientId');
+    if (!clientId) {
+        return jsonResponse({ error: 'clientId query parameter is required' }, 400, request);
+    }
+
+    const notionAuthUrl = new URL('https://api.notion.com/v1/oauth/authorize');
+    notionAuthUrl.searchParams.set('client_id', env.NOTION_CLIENT_ID);
+    notionAuthUrl.searchParams.set('response_type', 'code');
+    notionAuthUrl.searchParams.set('owner', 'user');
+    notionAuthUrl.searchParams.set('redirect_uri', env.NOTION_REDIRECT_URI);
+    notionAuthUrl.searchParams.set('state', clientId);
+
+    return Response.redirect(notionAuthUrl.toString(), 302);
+}
+
+// ────────────────────────────────────────────
+// Notion OAuth: Callback (exchange code → token → create DB)
+// ────────────────────────────────────────────
+
+async function handleNotionCallback(request, env, url) {
+    const code = url.searchParams.get('code');
+    const clientId = url.searchParams.get('state');
+    const error = url.searchParams.get('error');
+    const dashboardUrl = env.DASHBOARD_URL || 'http://localhost:5173';
+
+    if (error) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=${encodeURIComponent(error)}`, 302);
+    }
+
+    if (!code || !clientId) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=missing_params`, 302);
+    }
+
+    try {
+        // 1. Exchange authorization code for access token
+        const tokenResp = await fetch('https://api.notion.com/v1/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${btoa(`${env.NOTION_CLIENT_ID}:${env.NOTION_CLIENT_SECRET}`)}`,
+            },
+            body: JSON.stringify({
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: env.NOTION_REDIRECT_URI,
+            }),
+        });
+
+        if (!tokenResp.ok) {
+            const errText = await tokenResp.text();
+            console.error('Notion token exchange failed:', errText);
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=token_exchange_failed`, 302);
+        }
+
+        const tokenData = await tokenResp.json();
+        const accessToken = tokenData.access_token;
+        const workspaceName = tokenData.workspace_name || 'Notion Workspace';
+        const botId = tokenData.bot_id || '';
+
+        // 2. Find an accessible page to create the database in
+        const searchResp = await fetch('https://api.notion.com/v1/search', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28',
+            },
+            body: JSON.stringify({
+                filter: { value: 'page', property: 'object' },
+                page_size: 1,
+            }),
+        });
+
+        if (!searchResp.ok) {
+            console.error('Notion search failed:', await searchResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=no_pages_found`, 302);
+        }
+
+        const searchData = await searchResp.json();
+        if (!searchData.results || searchData.results.length === 0) {
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=no_pages_shared`, 302);
+        }
+
+        const parentPageId = searchData.results[0].id;
+
+        // 3. Create "Errora Bug Reports" database
+        const dbResp = await fetch('https://api.notion.com/v1/databases', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28',
+            },
+            body: JSON.stringify({
+                parent: { type: 'page_id', page_id: parentPageId },
+                title: [
+                    { type: 'text', text: { content: '🐞 Errora Bug Reports' } },
+                ],
+                properties: {
+                    Name: { title: {} },
+                    Status: {
+                        select: {
+                            options: [
+                                { name: 'New', color: 'red' },
+                                { name: 'In Progress', color: 'yellow' },
+                                { name: 'Done', color: 'green' },
+                            ],
+                        },
+                    },
+                    Comment: { rich_text: {} },
+                    URL: { url: {} },
+                    Browser: { rich_text: {} },
+                    OS: { rich_text: {} },
+                    Screen: { rich_text: {} },
+                },
+            }),
+        });
+
+        if (!dbResp.ok) {
+            console.error('Notion DB creation failed:', await dbResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=db_creation_failed`, 302);
+        }
+
+        const dbData = await dbResp.json();
+        const notionDbId = dbData.id;
+        const notionDbUrl = dbData.url || '';
+
+        // 4. Save tokens to Supabase
+        const updateUrl = `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}`;
+        const updateResp = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+                notion_access_token: accessToken,
+                notion_db_id: notionDbId,
+                notion_workspace_name: workspaceName,
+                notion_bot_id: botId,
+                notion_db_url: notionDbUrl,
+                updated_at: new Date().toISOString(),
+            }),
+        });
+
+        if (!updateResp.ok) {
+            console.error('Supabase update failed:', await updateResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=save_failed`, 302);
+        }
+
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=success`, 302);
+    } catch (err) {
+        console.error('handleNotionCallback error:', err);
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/notion?status=error&reason=${encodeURIComponent(err.message)}`, 302);
+    }
+}
+
+// ────────────────────────────────────────────
+// Notion OAuth: Disconnect
+// ────────────────────────────────────────────
+
+async function handleNotionDisconnect(request, env) {
+    try {
+        const body = await request.json();
+        const { apiKey } = body;
+
+        if (!apiKey) {
+            return jsonResponse({ error: 'apiKey is required' }, 400, request);
+        }
+
+        const client = await getClientByApiKey(apiKey, env);
+        if (!client) {
+            return jsonResponse({ error: 'Invalid API key' }, 401, request);
+        }
+
+        const updateUrl = `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(client.id)}`;
+        await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+                notion_access_token: null,
+                notion_db_id: null,
+                notion_workspace_name: null,
+                notion_bot_id: null,
+                notion_db_url: null,
+                notion_key: null,
+                updated_at: new Date().toISOString(),
+            }),
+        });
+
+        return jsonResponse({ success: true, message: 'Notion disconnected' }, 200, request);
+    } catch (err) {
+        console.error('handleNotionDisconnect error:', err);
+        return jsonResponse({ error: 'Internal Server Error', details: err.message }, 500, request);
     }
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function LandingPage() {
     const navigate = useNavigate();
@@ -112,6 +112,11 @@ export default function LandingPage() {
 
             {/* Footer */}
             <footer className="landing__footer">
+                <div className="landing__footer-links">
+                    <Link to="/privacy">Privacy Policy</Link>
+                    <Link to="/terms">Terms of Use</Link>
+                    <Link to="/dpa">DPA</Link>
+                </div>
                 <p>Errora © {new Date().getFullYear()} · Сделано с 🐞</p>
             </footer>
         </div>

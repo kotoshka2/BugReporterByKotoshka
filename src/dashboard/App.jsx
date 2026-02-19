@@ -4,6 +4,9 @@ import { supabase } from './supabaseClient';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfUse from './pages/TermsOfUse';
+import DPA from './pages/DPA';
 
 export default function App() {
     const [session, setSession] = useState(null);
@@ -37,6 +40,9 @@ export default function App() {
     return (
         <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfUse />} />
+            <Route path="/dpa" element={<DPA />} />
             <Route
                 path="/auth"
                 element={session ? <Navigate to="/dashboard" replace /> : <AuthPage />}
