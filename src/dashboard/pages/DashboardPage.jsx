@@ -90,9 +90,9 @@ export default function DashboardPage({ session }) {
                         <button
                             onClick={toggleLanguage}
                             title="Switch Language"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                            className="lang-switcher"
                         >
-                            {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                            {i18n.language === 'en' ? '🇺🇸 EN' : '🇷🇺 RU'}
                         </button>
                     </div>
                     <button onClick={handleLogout} className="btn btn--ghost btn--sm">

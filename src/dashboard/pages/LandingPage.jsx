@@ -31,10 +31,10 @@ export default function LandingPage() {
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         <button
                             onClick={toggleLanguage}
+                            className="lang-switcher"
                             title="Switch Language"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
                         >
-                            {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                            {i18n.language === 'en' ? '🇺🇸 EN' : '🇷🇺 RU'}
                         </button>
                         <button className="btn btn--outline btn--sm" onClick={() => navigate('/auth')}>
                             {t('landing.login')}

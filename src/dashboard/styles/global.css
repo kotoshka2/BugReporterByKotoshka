@@ -301,6 +301,33 @@ a:hover {
     text-decoration: underline;
 }
 
+.lang-switcher {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.lang-switcher:hover {
+    background: rgba(108, 99, 255, 0.15);
+    border-color: rgba(108, 99, 255, 0.3);
+    color: var(--accent-light);
+    transform: translateY(-1px);
+}
+
+.lang-switcher:active {
+    transform: scale(0.95);
+}
+
 .btn--outline {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);

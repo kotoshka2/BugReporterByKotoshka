@@ -57,10 +57,11 @@ export default function AuthPage() {
                 <div className="auth-header" style={{ position: 'relative' }}>
                     <button
                         onClick={toggleLanguage}
+                        className="lang-switcher"
                         title="Switch Language"
-                        style={{ position: 'absolute', right: 0, top: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                        style={{ position: 'absolute', right: 0, top: 0 }}
                     >
-                        {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                        {i18n.language === 'en' ? '🇺🇸 EN' : '🇷🇺 RU'}
                     </button>
                     <span className="auth-logo">🐞</span>
                     <h1>Errora</h1>
