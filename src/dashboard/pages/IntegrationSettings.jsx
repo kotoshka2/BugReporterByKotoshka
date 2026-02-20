@@ -382,6 +382,123 @@ function DiscordSettings({ client, onUpdate }) {
     );
 }
 
+// ── Slack Settings (OAuth) ──
+function SlackSettings({ client, onUpdate }) {
+    const [disconnecting, setDisconnecting] = useState(false);
+    const [message, setMessage] = useState('');
+    const navigate = useNavigate();
+    const isConnected = !!client?.slack_webhook_url;
+
+    // Check for OAuth callback status in URL
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status');
+        const reason = params.get('reason');
+
+        if (status === 'success') {
+            setMessage('Slack подключён! ✅');
+            onUpdate();
+            navigate('/dashboard/integrations/slack', { replace: true });
+        } else if (status === 'error') {
+            const reasons = {
+                token_exchange_failed: 'Ошибка при обмене токена',
+                no_webhook: 'Не удалось получить Webhook URL от Slack',
+                save_failed: 'Ошибка при сохранении',
+                missing_params: 'Отсутствуют параметры авторизации',
+                access_denied: 'Доступ отклонён пользователем',
+            };
+            setMessage(`Ошибка: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
+            navigate('/dashboard/integrations/slack', { replace: true });
+        }
+    }, []);
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL.replace('/api/report', '');
+
+    const handleConnect = () => {
+        const url = `${apiBaseUrl}/api/slack/auth?clientId=${encodeURIComponent(client.id)}`;
+        window.location.href = url;
+    };
+
+    const handleDisconnect = async () => {
+        setDisconnecting(true);
+        setMessage('');
+
+        try {
+            const resp = await fetch(`${apiBaseUrl}/api/slack/disconnect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: client.api_key }),
+            });
+
+            if (resp.ok) {
+                setMessage('Slack отключён ✅');
+                onUpdate();
+            } else {
+                setMessage('Ошибка при отключении');
+            }
+        } catch (err) {
+            setMessage('Ошибка сети: ' + err.message);
+        }
+        setDisconnecting(false);
+    };
+
+    return (
+        <div>
+            <div className="card">
+                <h2 className="card__title">💬 Slack</h2>
+
+                {isConnected ? (
+                    <div className="notion-connected">
+                        <div className="notion-status">
+                            <span className="notion-status__badge">✅ Подключено</span>
+                            {client.slack_team_name && (
+                                <span className="notion-status__workspace">
+                                    Workspace: <strong>{client.slack_team_name}</strong>
+                                </span>
+                            )}
+                            {client.slack_channel_name && (
+                                <span className="notion-status__workspace">
+                                    Канал: <strong>{client.slack_channel_name}</strong>
+                                </span>
+                            )}
+                        </div>
+
+                        <div style={{ marginTop: '16px' }}>
+                            <button
+                                onClick={handleDisconnect}
+                                className="btn btn--danger btn--sm"
+                                disabled={disconnecting}
+                            >
+                                {disconnecting ? 'Отключение…' : '🔴 Отключить Slack'}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="notion-connect">
+                        <p className="card__desc">
+                            Подключите Slack, чтобы баг-репорты автоматически отправлялись в выбранный канал.
+                        </p>
+                        <div className="notion-connect__steps">
+                            <p>1. Нажмите кнопку ниже</p>
+                            <p>2. Выберите канал для уведомлений</p>
+                            <p>3. Готово! Баг-репорты будут приходить в Slack</p>
+                        </div>
+                        <button onClick={handleConnect} className="btn btn--primary" style={{ marginTop: '16px' }}>
+                            🔗 Подключить Slack
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {message && (
+                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                    {message}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Coming Soon Placeholder ──
 function ComingSoonPlaceholder({ name, icon }) {
     return (
@@ -429,6 +546,8 @@ export default function IntegrationSettings({ client, onUpdate }) {
                 return <NotionSettings client={client} onUpdate={onUpdate} />;
             case 'discord':
                 return <DiscordSettings client={client} onUpdate={onUpdate} />;
+            case 'slack':
+                return <SlackSettings client={client} onUpdate={onUpdate} />;
             default:
                 return <ComingSoonPlaceholder name={meta.name} icon={meta.icon} />;
         }

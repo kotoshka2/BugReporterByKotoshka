@@ -4,7 +4,7 @@
  * Multi-tenant SaaS Architecture:
  * 1. Validates the API key against the `clients` table in Supabase
  * 2. Uploads screenshot to Supabase Storage
- * 3. Sends notification to the CLIENT's Telegram, Notion, and/or Discord
+ * 3. Sends notification to the CLIENT's Telegram, Notion, Discord, and/or Slack
  * 4. Logs the report in the `reports` table
  *
  * Environment Variables (set via wrangler.toml or `wrangler secret put`):
@@ -14,6 +14,9 @@
  *   NOTION_CLIENT_ID      — Notion OAuth public integration client ID
  *   NOTION_CLIENT_SECRET  — Notion OAuth client secret
  *   NOTION_REDIRECT_URI   — OAuth callback URL (this worker's /api/notion/callback)
+ *   SLACK_CLIENT_ID       — Slack OAuth app client ID
+ *   SLACK_CLIENT_SECRET   — Slack OAuth app client secret
+ *   SLACK_REDIRECT_URI    — OAuth callback URL (this worker's /api/slack/callback)
  *   DASHBOARD_URL         — Dashboard base URL for post-OAuth redirect
  */
 
@@ -49,6 +52,21 @@ export default {
         // ── Route: POST /api/notion/disconnect — Disconnect Notion ──
         if (url.pathname === '/api/notion/disconnect' && request.method === 'POST') {
             return handleNotionDisconnect(request, env);
+        }
+
+        // ── Route: GET /api/slack/auth — Start Slack OAuth ──
+        if (url.pathname === '/api/slack/auth' && request.method === 'GET') {
+            return handleSlackAuth(request, env, url);
+        }
+
+        // ── Route: GET /api/slack/callback — Slack OAuth callback ──
+        if (url.pathname === '/api/slack/callback' && request.method === 'GET') {
+            return handleSlackCallback(request, env, url);
+        }
+
+        // ── Route: POST /api/slack/disconnect — Disconnect Slack ──
+        if (url.pathname === '/api/slack/disconnect' && request.method === 'POST') {
+            return handleSlackDisconnect(request, env);
         }
 
         // ── Health check ──
@@ -131,6 +149,10 @@ async function handleReport(request, env) {
             integrationTasks.discord = sendToDiscord(report, client);
         }
 
+        if (client.slack_webhook_url) {
+            integrationTasks.slack = sendToSlack(report, client);
+        }
+
         const keys = Object.keys(integrationTasks);
         const results = await Promise.allSettled(Object.values(integrationTasks));
 
@@ -149,7 +171,7 @@ async function handleReport(request, env) {
         }
 
         // ── Log the report ──
-        await logReport(client.id, report, screenshotUrl, sentStatus.telegram || false, sentStatus.notion || false, sentStatus.discord || false, env);
+        await logReport(client.id, report, screenshotUrl, sentStatus.telegram || false, sentStatus.notion || false, sentStatus.discord || false, sentStatus.slack || false, env);
 
         return jsonResponse(
             { success: true, message: 'Report received', errors },
@@ -227,7 +249,7 @@ async function getClientByApiKey(apiKey, env) {
 // Report Logging (Supabase REST API)
 // ────────────────────────────────────────────
 
-async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, discordSent, env) {
+async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, discordSent, slackSent, env) {
     const meta = report.metadata || {};
 
     const url = `${env.SUPABASE_URL}/rest/v1/reports`;
@@ -253,6 +275,7 @@ async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, di
                 tg_sent: tgSent,
                 notion_sent: notionSent,
                 discord_sent: discordSent,
+                slack_sent: slackSent,
             }),
         });
     } catch (err) {
@@ -575,6 +598,222 @@ async function sendToNotion(report, client, token) {
     if (!resp.ok) {
         const errText = await resp.text();
         throw new Error(`Notion create page failed: ${errText}`);
+    }
+}
+
+// ────────────────────────────────────────────
+// Slack Integration
+// ────────────────────────────────────────────
+
+async function sendToSlack(report, client) {
+    const webhookUrl = client.slack_webhook_url;
+    const meta = report.metadata || {};
+
+    const blocks = [
+        {
+            type: 'header',
+            text: { type: 'plain_text', text: '🐞 Новый баг-репорт', emoji: true },
+        },
+        {
+            type: 'section',
+            text: { type: 'mrkdwn', text: `*💬 Комментарий:*\n${report.comment}` },
+        },
+        {
+            type: 'section',
+            fields: [
+                { type: 'mrkdwn', text: `*🌐 URL:*\n${meta.url || 'N/A'}` },
+                { type: 'mrkdwn', text: `*🖥 Браузер:*\n${meta.browser || 'N/A'}` },
+                { type: 'mrkdwn', text: `*💻 ОС:*\n${meta.os || 'N/A'}` },
+                { type: 'mrkdwn', text: `*📐 Экран:*\n${meta.screenSize || 'N/A'}` },
+            ],
+        },
+    ];
+
+    // Add console logs if present
+    if (report.consoleLogs && report.consoleLogs.length > 0) {
+        const logsText = report.consoleLogs
+            .slice(-10)
+            .map((l) => `[${(l.level || 'log').toUpperCase()}] ${(l.message || String(l)).slice(0, 100)}`)
+            .join('\n');
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*📋 Консоль (последние ${Math.min(report.consoleLogs.length, 10)}):*\n\`\`\`${logsText.slice(0, 2900)}\`\`\``,
+            },
+        });
+    }
+
+    // Add screenshot if present
+    if (report.screenshotUrl) {
+        blocks.push({
+            type: 'image',
+            image_url: report.screenshotUrl,
+            alt_text: 'Bug report screenshot',
+        });
+    }
+
+    blocks.push({
+        type: 'context',
+        elements: [
+            { type: 'mrkdwn', text: `Errora Bug Reporter • ${report.receivedAt}` },
+        ],
+    });
+
+    const resp = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks }),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Slack send failed (${resp.status}): ${errText}`);
+    }
+}
+
+// ────────────────────────────────────────────
+// Slack OAuth: Start Authorization
+// ────────────────────────────────────────────
+
+async function handleSlackAuth(request, env, url) {
+    const clientId = url.searchParams.get('clientId');
+    if (!clientId) {
+        return jsonResponse({ error: 'clientId query parameter is required' }, 400, request);
+    }
+
+    const slackAuthUrl = new URL('https://slack.com/oauth/v2/authorize');
+    slackAuthUrl.searchParams.set('client_id', env.SLACK_CLIENT_ID);
+    slackAuthUrl.searchParams.set('scope', 'incoming-webhook');
+    slackAuthUrl.searchParams.set('redirect_uri', env.SLACK_REDIRECT_URI);
+    slackAuthUrl.searchParams.set('state', clientId);
+
+    return Response.redirect(slackAuthUrl.toString(), 302);
+}
+
+// ────────────────────────────────────────────
+// Slack OAuth: Callback (exchange code → token + webhook)
+// ────────────────────────────────────────────
+
+async function handleSlackCallback(request, env, url) {
+    const code = url.searchParams.get('code');
+    const clientId = url.searchParams.get('state');
+    const error = url.searchParams.get('error');
+    const dashboardUrl = env.DASHBOARD_URL || 'http://localhost:5173';
+
+    if (error) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=${encodeURIComponent(error)}`, 302);
+    }
+
+    if (!code || !clientId) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=missing_params`, 302);
+    }
+
+    try {
+        // 1. Exchange authorization code for access token
+        const tokenResp = await fetch('https://slack.com/api/oauth.v2.access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: env.SLACK_CLIENT_ID,
+                client_secret: env.SLACK_CLIENT_SECRET,
+                code,
+                redirect_uri: env.SLACK_REDIRECT_URI,
+            }),
+        });
+
+        if (!tokenResp.ok) {
+            console.error('Slack token exchange HTTP error:', tokenResp.status);
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=token_exchange_failed`, 302);
+        }
+
+        const tokenData = await tokenResp.json();
+        if (!tokenData.ok) {
+            console.error('Slack token exchange failed:', tokenData.error);
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=${encodeURIComponent(tokenData.error || 'token_exchange_failed')}`, 302);
+        }
+
+        const accessToken = tokenData.access_token || '';
+        const teamName = tokenData.team?.name || 'Slack Workspace';
+        const webhookUrl = tokenData.incoming_webhook?.url || '';
+        const channelName = tokenData.incoming_webhook?.channel || '';
+
+        if (!webhookUrl) {
+            console.error('Slack OAuth: no incoming webhook URL returned');
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=no_webhook`, 302);
+        }
+
+        // 2. Save tokens to Supabase
+        const updateUrl = `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}`;
+        const updateResp = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+                slack_access_token: accessToken,
+                slack_webhook_url: webhookUrl,
+                slack_channel_name: channelName,
+                slack_team_name: teamName,
+                updated_at: new Date().toISOString(),
+            }),
+        });
+
+        if (!updateResp.ok) {
+            console.error('Supabase update failed:', await updateResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=save_failed`, 302);
+        }
+
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=success`, 302);
+    } catch (err) {
+        console.error('handleSlackCallback error:', err);
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/slack?status=error&reason=${encodeURIComponent(err.message)}`, 302);
+    }
+}
+
+// ────────────────────────────────────────────
+// Slack OAuth: Disconnect
+// ────────────────────────────────────────────
+
+async function handleSlackDisconnect(request, env) {
+    try {
+        const body = await request.json();
+        const { apiKey } = body;
+
+        if (!apiKey) {
+            return jsonResponse({ error: 'apiKey is required' }, 400, request);
+        }
+
+        const client = await getClientByApiKey(apiKey, env);
+        if (!client) {
+            return jsonResponse({ error: 'Invalid API key' }, 401, request);
+        }
+
+        const updateUrl = `${env.SUPABASE_URL}/rest/v1/clients?id=eq.${encodeURIComponent(client.id)}`;
+        await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+                slack_access_token: null,
+                slack_webhook_url: null,
+                slack_channel_name: null,
+                slack_team_name: null,
+                updated_at: new Date().toISOString(),
+            }),
+        });
+
+        return jsonResponse({ success: true, message: 'Slack disconnected' }, 200, request);
+    } catch (err) {
+        console.error('handleSlackDisconnect error:', err);
+        return jsonResponse({ error: 'Internal Server Error', details: err.message }, 500, request);
     }
 }
 
