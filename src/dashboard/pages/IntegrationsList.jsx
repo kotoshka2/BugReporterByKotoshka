@@ -28,7 +28,7 @@ const INTEGRATIONS = [
         name: 'Slack',
         icon: '💬',
         description: 'Отправляйте уведомления о багах в Slack-каналы.',
-        comingSoon: true,
+        checkActive: (client) => !!client?.slack_webhook_url,
     },
     {
         id: 'discord',
