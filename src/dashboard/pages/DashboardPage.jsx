@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import SettingsPage from './SettingsPage';
 import IntegrationsPage from './IntegrationsPage';
+import ReportsPage from './ReportsPage';
 import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage({ session }) {
