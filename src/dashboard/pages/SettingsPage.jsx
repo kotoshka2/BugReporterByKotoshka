@@ -90,29 +90,51 @@ export default function SettingsPage({ client, onUpdate }) {
                 <p className="card__desc">{t('settings.config_desc')}</p>
 
                 <div className="form-row" style={{ marginBottom: '20px' }}>
-                    <div className="form-group">
+                    <div className="form-group" style={{ gap: '10px' }}>
                         <label>{t('settings.config_lang_label')}</label>
-                        <select
-                            value={snippetLang}
-                            onChange={(e) => setSnippetLang(e.target.value)}
-                            style={{ padding: '10px 14px', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none' }}
-                        >
-                            <option value="en">{t('settings.config_lang_en')}</option>
-                            <option value="ru">{t('settings.config_lang_ru')}</option>
-                        </select>
+                        <div className="bot-mode-toggle">
+                            <label className={`bot-mode-option ${snippetLang === 'en' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetLang('en')}>
+                                <input type="radio" value="en" checked={snippetLang === 'en'} onChange={() => setSnippetLang('en')} />
+                                <div>
+                                    <strong>{t('settings.config_lang_en')}</strong>
+                                </div>
+                            </label>
+                            <label className={`bot-mode-option ${snippetLang === 'ru' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetLang('ru')}>
+                                <input type="radio" value="ru" checked={snippetLang === 'ru'} onChange={() => setSnippetLang('ru')} />
+                                <div>
+                                    <strong>{t('settings.config_lang_ru')}</strong>
+                                </div>
+                            </label>
+                        </div>
                     </div>
-                    <div className="form-group">
+                    <div className="form-group" style={{ gap: '10px' }}>
                         <label>{t('settings.config_pos_label')}</label>
-                        <select
-                            value={snippetPosition}
-                            onChange={(e) => setSnippetPosition(e.target.value)}
-                            style={{ padding: '10px 14px', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none' }}
-                        >
-                            <option value="bottom-right">{t('settings.config_pos_br')}</option>
-                            <option value="bottom-left">{t('settings.config_pos_bl')}</option>
-                            <option value="top-right">{t('settings.config_pos_tr')}</option>
-                            <option value="top-left">{t('settings.config_pos_tl')}</option>
-                        </select>
+                        <div className="bot-mode-toggle">
+                            <label className={`bot-mode-option ${snippetPosition === 'bottom-right' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetPosition('bottom-right')} style={{ padding: '8px 12px' }}>
+                                <input type="radio" value="bottom-right" checked={snippetPosition === 'bottom-right'} onChange={() => setSnippetPosition('bottom-right')} />
+                                <div>
+                                    <strong>{t('settings.config_pos_br')}</strong>
+                                </div>
+                            </label>
+                            <label className={`bot-mode-option ${snippetPosition === 'bottom-left' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetPosition('bottom-left')} style={{ padding: '8px 12px' }}>
+                                <input type="radio" value="bottom-left" checked={snippetPosition === 'bottom-left'} onChange={() => setSnippetPosition('bottom-left')} />
+                                <div>
+                                    <strong>{t('settings.config_pos_bl')}</strong>
+                                </div>
+                            </label>
+                            <label className={`bot-mode-option ${snippetPosition === 'top-right' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetPosition('top-right')} style={{ padding: '8px 12px' }}>
+                                <input type="radio" value="top-right" checked={snippetPosition === 'top-right'} onChange={() => setSnippetPosition('top-right')} />
+                                <div>
+                                    <strong>{t('settings.config_pos_tr')}</strong>
+                                </div>
+                            </label>
+                            <label className={`bot-mode-option ${snippetPosition === 'top-left' ? 'bot-mode-option--active' : ''}`} onClick={() => setSnippetPosition('top-left')} style={{ padding: '8px 12px' }}>
+                                <input type="radio" value="top-left" checked={snippetPosition === 'top-left'} onChange={() => setSnippetPosition('top-left')} />
+                                <div>
+                                    <strong>{t('settings.config_pos_tl')}</strong>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
