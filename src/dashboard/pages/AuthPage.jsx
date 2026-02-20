@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from 'react-i18next';
 
 export default function AuthPage() {
+    const { t } = useTranslation();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,7 +29,7 @@ export default function AuthPage() {
                     options: { data: { name } },
                 });
                 if (error) throw error;
-                setSuccess('Аккаунт создан! Проверьте почту для подтверждения.');
+                setSuccess(t('auth.success_register'));
             }
         } catch (err) {
             setError(err.message);
@@ -49,13 +51,13 @@ export default function AuthPage() {
                 <div className="auth-header">
                     <span className="auth-logo">🐞</span>
                     <h1>Errora</h1>
-                    <p>{isLogin ? 'Войдите в свой аккаунт' : 'Создайте аккаунт'}</p>
+                    <p>{isLogin ? t('auth.login_title') : t('auth.register_title')}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     {!isLogin && (
                         <div className="form-group">
-                            <label htmlFor="name">Имя / Компания</label>
+                            <label htmlFor="name">{t('auth.label_name')}</label>
                             <input
                                 id="name"
                                 type="text"
@@ -68,7 +70,7 @@ export default function AuthPage() {
                     )}
 
                     <div className="form-group">
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="email">{t('auth.label_email')}</label>
                         <input
                             id="email"
                             type="email"
@@ -80,7 +82,7 @@ export default function AuthPage() {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password">Пароль</label>
+                        <label htmlFor="password">{t('auth.label_password')}</label>
                         <input
                             id="password"
                             type="password"
@@ -96,7 +98,7 @@ export default function AuthPage() {
                     {success && <div className="alert alert--success">{success}</div>}
 
                     <button type="submit" className="btn btn--primary" disabled={loading}>
-                        {loading ? 'Загрузка…' : isLogin ? 'Войти' : 'Зарегистрироваться'}
+                        {loading ? t('auth.btn_loading') : isLogin ? t('auth.btn_login') : t('auth.btn_register')}
                     </button>
                 </form>
 
@@ -105,7 +107,7 @@ export default function AuthPage() {
                         className="btn btn--link"
                         onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
                     >
-                        {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
+                        {isLogin ? t('auth.link_to_register') : t('auth.link_to_login')}
                     </button>
                 </div>
             </div>

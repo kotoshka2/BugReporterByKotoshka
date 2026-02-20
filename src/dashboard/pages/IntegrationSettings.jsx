@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { useTranslation, Trans } from 'react-i18next';
 
 // ── Telegram Settings ──
 function TelegramSettings({ client, onUpdate }) {
+    const { t } = useTranslation();
     const [botMode, setBotMode] = useState(client?.tg_bot_token ? 'custom' : 'system');
     const [tgBotToken, setTgBotToken] = useState(client?.tg_bot_token || '');
     const [tgChatId, setTgChatId] = useState(client?.tg_chat_id || '');
@@ -27,9 +29,9 @@ function TelegramSettings({ client, onUpdate }) {
             .eq('id', client.id);
 
         if (error) {
-            setMessage('Ошибка сохранения: ' + error.message);
+            setMessage(t('integrations.msg_save_error') + error.message);
         } else {
-            setMessage('Настройки сохранены! ✅');
+            setMessage(t('integrations.msg_save_success'));
             onUpdate();
         }
         setSaving(false);
@@ -38,8 +40,8 @@ function TelegramSettings({ client, onUpdate }) {
     return (
         <form onSubmit={handleSave}>
             <div className="card">
-                <h2 className="card__title">📱 Telegram</h2>
-                <p className="card__desc">Получайте баг-репорты прямо в чат Telegram.</p>
+                <h2 className="card__title">📱 {t('integrations.tg_title')}</h2>
+                <p className="card__desc">{t('integrations.tg_desc')}</p>
 
                 {/* Bot Mode Toggle */}
                 <div className="bot-mode-toggle">
@@ -55,8 +57,8 @@ function TelegramSettings({ client, onUpdate }) {
                             onChange={() => setBotMode('system')}
                         />
                         <div>
-                            <strong>🤖 Системный бот</strong>
-                            <span>Быстрый старт — нужен только Chat ID</span>
+                            <strong>{t('integrations.tg_bot_system')}</strong>
+                            <span>{t('integrations.tg_bot_system_desc')}</span>
                         </div>
                     </label>
                     <label
@@ -71,8 +73,8 @@ function TelegramSettings({ client, onUpdate }) {
                             onChange={() => setBotMode('custom')}
                         />
                         <div>
-                            <strong>🔧 Свой бот</strong>
-                            <span>Полный контроль — укажите свой токен</span>
+                            <strong>{t('integrations.tg_bot_custom')}</strong>
+                            <span>{t('integrations.tg_bot_custom_desc')}</span>
                         </div>
                     </label>
                 </div>
@@ -80,18 +82,18 @@ function TelegramSettings({ client, onUpdate }) {
                 {/* System bot instructions */}
                 {botMode === 'system' && (
                     <div className="bot-instructions">
-                        <p>1. Начните диалог или добавьте в беседу нашего бота: <a href="https://t.me/ErroraBot" target="_blank" rel="noopener">@ErroraBot</a></p>
-                        <p>2. Отправьте команду <code>/chatid</code></p>
-                        <p>3. Скопируйте Chat ID и вставьте ниже</p>
+                        <p>{t('integrations.tg_inst_sys_1')}<a href="https://t.me/ErroraBot" target="_blank" rel="noopener">@ErroraBot</a></p>
+                        <p><Trans i18nKey="integrations.tg_inst_sys_2">2. Send the command <code>/chatid</code></Trans></p>
+                        <p>{t('integrations.tg_inst_sys_3')}</p>
                     </div>
                 )}
 
                 {/* Custom bot instructions */}
                 {botMode === 'custom' && (
                     <div className="bot-instructions">
-                        <p>1. Создайте бота через <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a></p>
-                        <p>2. Скопируйте токен и вставьте ниже</p>
-                        <p>3. Добавьте бота в чат/группу и укажите Chat ID</p>
+                        <p>{t('integrations.tg_inst_cus_1')}<a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a></p>
+                        <p>{t('integrations.tg_inst_cus_2')}</p>
+                        <p>{t('integrations.tg_inst_cus_3')}</p>
                     </div>
                 )}
 
@@ -122,13 +124,13 @@ function TelegramSettings({ client, onUpdate }) {
             </div>
 
             {message && (
-                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                <div className={`alert ${message.includes('error') || message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
                     {message}
                 </div>
             )}
 
             <button type="submit" className="btn btn--primary" disabled={saving}>
-                {saving ? 'Сохранение…' : 'Сохранить'}
+                {saving ? t('integrations.btn_saving') : t('integrations.btn_save')}
             </button>
         </form>
     );
@@ -136,6 +138,7 @@ function TelegramSettings({ client, onUpdate }) {
 
 // ── Notion Settings (OAuth) ──
 function NotionSettings({ client, onUpdate }) {
+    const { t } = useTranslation();
     const [disconnecting, setDisconnecting] = useState(false);
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
@@ -148,7 +151,7 @@ function NotionSettings({ client, onUpdate }) {
         const reason = params.get('reason');
 
         if (status === 'success') {
-            setMessage('Notion подключён! ✅');
+            setMessage(t('integrations.notion_connected'));
             onUpdate();
             // Clean URL
             navigate('/dashboard/integrations/notion', { replace: true });
@@ -161,7 +164,7 @@ function NotionSettings({ client, onUpdate }) {
                 save_failed: 'Ошибка при сохранении',
                 missing_params: 'Отсутствуют параметры авторизации',
             };
-            setMessage(`Ошибка: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
+            setMessage(`Ошибка/Error: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
             navigate('/dashboard/integrations/notion', { replace: true });
         }
     }, []);
@@ -185,13 +188,13 @@ function NotionSettings({ client, onUpdate }) {
             });
 
             if (resp.ok) {
-                setMessage('Notion отключён ✅');
+                setMessage(t('integrations.notion_disconnected'));
                 onUpdate();
             } else {
-                setMessage('Ошибка при отключении');
+                setMessage(t('integrations.msg_disconnect_error'));
             }
         } catch (err) {
-            setMessage('Ошибка сети: ' + err.message);
+            setMessage(t('integrations.msg_network_error') + err.message);
         }
         setDisconnecting(false);
     };
@@ -199,12 +202,12 @@ function NotionSettings({ client, onUpdate }) {
     return (
         <div>
             <div className="card">
-                <h2 className="card__title">📋 Notion</h2>
+                <h2 className="card__title">📋 {t('integrations.notion_title')}</h2>
 
                 {isConnected ? (
                     <div className="notion-connected">
                         <div className="notion-status">
-                            <span className="notion-status__badge">✅ Подключено</span>
+                            <span className="notion-status__badge">✅ {t('integrations.status_connected')}</span>
                             {client.notion_workspace_name && (
                                 <span className="notion-status__workspace">
                                     Workspace: <strong>{client.notion_workspace_name}</strong>
@@ -220,7 +223,7 @@ function NotionSettings({ client, onUpdate }) {
                                 className="btn btn--ghost btn--sm"
                                 style={{ marginTop: '12px', display: 'inline-block' }}
                             >
-                                🔗 Открыть базу данных в Notion
+                                {t('integrations.notion_btn_open')}
                             </a>
                         )}
 
@@ -230,29 +233,29 @@ function NotionSettings({ client, onUpdate }) {
                                 className="btn btn--danger btn--sm"
                                 disabled={disconnecting}
                             >
-                                {disconnecting ? 'Отключение…' : '🔴 Отключить Notion'}
+                                {disconnecting ? t('integrations.btn_disconnecting') : t('integrations.notion_btn_disconnect')}
                             </button>
                         </div>
                     </div>
                 ) : (
                     <div className="notion-connect">
                         <p className="card__desc">
-                            Подключите Notion, чтобы баг-репорты автоматически создавались как записи в вашей базе данных.
+                            {t('integrations.notion_desc')}
                         </p>
                         <div className="notion-connect__steps">
-                            <p>1. Нажмите кнопку ниже</p>
-                            <p>2. Выберите страницу для базы данных</p>
-                            <p>3. Готово! База «🐞 Errora Bug Reports» создастся автоматически</p>
+                            <p>{t('integrations.notion_step_1')}</p>
+                            <p>{t('integrations.notion_step_2')}</p>
+                            <p>{t('integrations.notion_step_3')}</p>
                         </div>
                         <button onClick={handleConnect} className="btn btn--primary" style={{ marginTop: '16px' }}>
-                            🔗 Подключить Notion
+                            {t('integrations.notion_btn_connect')}
                         </button>
                     </div>
                 )}
             </div>
 
             {message && (
-                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                <div className={`alert ${message.includes('error') || message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
                     {message}
                 </div>
             )}
@@ -262,6 +265,7 @@ function NotionSettings({ client, onUpdate }) {
 
 // ── Discord Settings ──
 function DiscordSettings({ client, onUpdate }) {
+    const { t } = useTranslation();
     const [botToken, setBotToken] = useState(client?.discord_bot_token || '');
     const [channelId, setChannelId] = useState(client?.discord_channel_id || '');
     const [saving, setSaving] = useState(false);
@@ -286,9 +290,9 @@ function DiscordSettings({ client, onUpdate }) {
             .eq('id', client.id);
 
         if (error) {
-            setMessage('Ошибка сохранения: ' + error.message);
+            setMessage(t('integrations.msg_save_error') + error.message);
         } else {
-            setMessage('Настройки сохранены! ✅');
+            setMessage(t('integrations.msg_save_success'));
             onUpdate();
         }
         setSaving(false);
@@ -308,11 +312,11 @@ function DiscordSettings({ client, onUpdate }) {
             .eq('id', client.id);
 
         if (error) {
-            setMessage('Ошибка: ' + error.message);
+            setMessage(t('integrations.msg_save_error') + error.message);
         } else {
             setBotToken('');
             setChannelId('');
-            setMessage('Discord отключён ✅');
+            setMessage(t('integrations.discord_disconnected'));
             onUpdate();
         }
         setSaving(false);
@@ -321,21 +325,21 @@ function DiscordSettings({ client, onUpdate }) {
     return (
         <form onSubmit={handleSave}>
             <div className="card">
-                <h2 className="card__title">🎮 Discord</h2>
-                <p className="card__desc">Получайте баг-репорты прямо в канал Discord.</p>
+                <h2 className="card__title">🎮 {t('integrations.discord_title')}</h2>
+                <p className="card__desc">{t('integrations.discord_desc')}</p>
 
                 {isConnected && (
                     <div style={{ marginBottom: '16px' }}>
-                        <span className="badge badge--green">Подключено</span>
+                        <span className="badge badge--green">{t('integrations.status_connected')}</span>
                     </div>
                 )}
 
                 <div className="bot-instructions">
-                    <p>1. Перейдите в <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a></p>
-                    <p>2. Создайте приложение → Bot → скопируйте <strong>Bot Token</strong></p>
-                    <p>3. Включите <code>MESSAGE CONTENT INTENT</code> в настройках бота</p>
-                    <p>4. Добавьте бота на сервер (OAuth2 → scope: <code>bot</code>, permissions: <code>Send Messages</code>, <code>Embed Links</code>)</p>
-                    <p>5. Скопируйте <strong>Channel ID</strong> нужного канала (ПКМ → «Копировать ID канала», нужен включённый режим разработчика)</p>
+                    <p>{t('integrations.discord_inst_1')} <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a></p>
+                    <p><Trans i18nKey="integrations.discord_inst_2">2. Create application → Bot → copy <strong>Bot Token</strong></Trans></p>
+                    <p><Trans i18nKey="integrations.discord_inst_3">3. Enable <code>MESSAGE CONTENT INTENT</code> in bot settings</Trans></p>
+                    <p><Trans i18nKey="integrations.discord_inst_4">4. Add bot to server (OAuth2 → scope: <code>bot</code>, permissions: <code>Send Messages</code>, <code>Embed Links</code>)</Trans></p>
+                    <p><Trans i18nKey="integrations.discord_inst_5">5. Copy <strong>Channel ID</strong> of the desired channel</Trans></p>
                 </div>
 
                 <div className="form-row">
@@ -363,18 +367,18 @@ function DiscordSettings({ client, onUpdate }) {
             </div>
 
             {message && (
-                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                <div className={`alert ${message.includes('error') || message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
                     {message}
                 </div>
             )}
 
             <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="submit" className="btn btn--primary" disabled={saving}>
-                    {saving ? 'Сохранение…' : 'Сохранить'}
+                    {saving ? t('integrations.btn_saving') : t('integrations.btn_save')}
                 </button>
                 {isConnected && (
                     <button type="button" className="btn btn--danger btn--sm" onClick={handleDisconnect} disabled={saving}>
-                        🔴 Отключить
+                        {t('integrations.btn_disconnect')}
                     </button>
                 )}
             </div>
@@ -384,6 +388,7 @@ function DiscordSettings({ client, onUpdate }) {
 
 // ── Slack Settings (OAuth) ──
 function SlackSettings({ client, onUpdate }) {
+    const { t } = useTranslation();
     const [disconnecting, setDisconnecting] = useState(false);
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
@@ -396,7 +401,7 @@ function SlackSettings({ client, onUpdate }) {
         const reason = params.get('reason');
 
         if (status === 'success') {
-            setMessage('Slack подключён! ✅');
+            setMessage(t('integrations.slack_connected'));
             onUpdate();
             navigate('/dashboard/integrations/slack', { replace: true });
         } else if (status === 'error') {
@@ -407,7 +412,7 @@ function SlackSettings({ client, onUpdate }) {
                 missing_params: 'Отсутствуют параметры авторизации',
                 access_denied: 'Доступ отклонён пользователем',
             };
-            setMessage(`Ошибка: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
+            setMessage(`Ошибка/Error: ${reasons[reason] || reason || 'Неизвестная ошибка'}`);
             navigate('/dashboard/integrations/slack', { replace: true });
         }
     }, []);
@@ -431,13 +436,13 @@ function SlackSettings({ client, onUpdate }) {
             });
 
             if (resp.ok) {
-                setMessage('Slack отключён ✅');
+                setMessage(t('integrations.slack_disconnected'));
                 onUpdate();
             } else {
-                setMessage('Ошибка при отключении');
+                setMessage(t('integrations.msg_disconnect_error'));
             }
         } catch (err) {
-            setMessage('Ошибка сети: ' + err.message);
+            setMessage(t('integrations.msg_network_error') + err.message);
         }
         setDisconnecting(false);
     };
@@ -445,12 +450,12 @@ function SlackSettings({ client, onUpdate }) {
     return (
         <div>
             <div className="card">
-                <h2 className="card__title">💬 Slack</h2>
+                <h2 className="card__title">💬 {t('integrations.slack_title')}</h2>
 
                 {isConnected ? (
                     <div className="notion-connected">
                         <div className="notion-status">
-                            <span className="notion-status__badge">✅ Подключено</span>
+                            <span className="notion-status__badge">✅ {t('integrations.status_connected')}</span>
                             {client.slack_team_name && (
                                 <span className="notion-status__workspace">
                                     Workspace: <strong>{client.slack_team_name}</strong>
@@ -458,7 +463,7 @@ function SlackSettings({ client, onUpdate }) {
                             )}
                             {client.slack_channel_name && (
                                 <span className="notion-status__workspace">
-                                    Канал: <strong>{client.slack_channel_name}</strong>
+                                    {t('integrations.slack_channel')} <strong>{client.slack_channel_name}</strong>
                                 </span>
                             )}
                         </div>
@@ -469,29 +474,29 @@ function SlackSettings({ client, onUpdate }) {
                                 className="btn btn--danger btn--sm"
                                 disabled={disconnecting}
                             >
-                                {disconnecting ? 'Отключение…' : '🔴 Отключить Slack'}
+                                {disconnecting ? t('integrations.btn_disconnecting') : t('integrations.slack_btn_disconnect')}
                             </button>
                         </div>
                     </div>
                 ) : (
                     <div className="notion-connect">
                         <p className="card__desc">
-                            Подключите Slack, чтобы баг-репорты автоматически отправлялись в выбранный канал.
+                            {t('integrations.slack_desc')}
                         </p>
                         <div className="notion-connect__steps">
-                            <p>1. Нажмите кнопку ниже</p>
-                            <p>2. Выберите канал для уведомлений</p>
-                            <p>3. Готово! Баг-репорты будут приходить в Slack</p>
+                            <p>{t('integrations.slack_step_1')}</p>
+                            <p>{t('integrations.slack_step_2')}</p>
+                            <p>{t('integrations.slack_step_3')}</p>
                         </div>
                         <button onClick={handleConnect} className="btn btn--primary" style={{ marginTop: '16px' }}>
-                            🔗 Подключить Slack
+                            {t('integrations.slack_btn_connect')}
                         </button>
                     </div>
                 )}
             </div>
 
             {message && (
-                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                <div className={`alert ${message.includes('error') || message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
                     {message}
                 </div>
             )}
@@ -501,12 +506,13 @@ function SlackSettings({ client, onUpdate }) {
 
 // ── Coming Soon Placeholder ──
 function ComingSoonPlaceholder({ name, icon }) {
+    const { t } = useTranslation();
     return (
         <div className="card">
             <div className="empty-state">
                 <span className="empty-state__icon">{icon}</span>
                 <h3>{name}</h3>
-                <p>Эта интеграция скоро будет доступна. Следите за обновлениями!</p>
+                <p>{t('integrations.coming_soon')}</p>
             </div>
         </div>
     );
@@ -525,6 +531,7 @@ const INTEGRATION_META = {
 export default function IntegrationSettings({ client, onUpdate }) {
     const { integrationId } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const meta = INTEGRATION_META[integrationId];
 
     if (!meta) {
@@ -532,7 +539,7 @@ export default function IntegrationSettings({ client, onUpdate }) {
             <div className="page">
                 <div className="empty-state">
                     <span className="empty-state__icon">❓</span>
-                    <h3>Интеграция не найдена</h3>
+                    <h3>{t('integrations.not_found')}</h3>
                 </div>
             </div>
         );
@@ -559,7 +566,7 @@ export default function IntegrationSettings({ client, onUpdate }) {
                 className="btn btn--ghost btn--sm integration-back-btn"
                 onClick={() => navigate('/dashboard/integrations')}
             >
-                ← Назад к интеграциям
+                {t('integrations.btn_back')}
             </button>
             <h1 className="page__title">
                 {meta.icon} {meta.name}

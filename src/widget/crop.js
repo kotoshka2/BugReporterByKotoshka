@@ -6,16 +6,19 @@
 /**
  * Show the crop overlay and let the user select a region.
  * @param {ShadowRoot} shadowRoot — shadow root to attach elements inside.
+ * @param {string} lang — Language ('en' or 'ru')
  * @returns {Promise<{x: number, y: number, width: number, height: number}|null>}
  */
-export function showCropOverlay(shadowRoot) {
+export function showCropOverlay(shadowRoot, lang = 'en') {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'errora-crop-overlay';
 
         const hint = document.createElement('div');
         hint.className = 'errora-crop-overlay__hint';
-        hint.textContent = 'Выделите область экрана для скриншота. ESC — отмена.';
+        hint.textContent = lang === 'ru'
+            ? 'Выделите область экрана для скриншота. ESC — отмена.'
+            : 'Select screen area for the screenshot. ESC — cancel.';
         overlay.appendChild(hint);
 
         const selection = document.createElement('div');

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function LandingPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     return (
         <div className="landing">
@@ -21,24 +23,23 @@ export default function LandingPage() {
                         <h1>Errora</h1>
                     </div>
                     <button className="btn btn--outline btn--sm" onClick={() => navigate('/auth')}>
-                        Войти
+                        {t('landing.login')}
                     </button>
                 </nav>
 
                 <div className="landing__hero-content">
                     <h2 className="landing__headline">
-                        Собирайте баг-репорты<br />
-                        <span className="landing__gradient-text">прямо с сайта</span>
+                        {t('landing.headline_1')}<br />
+                        <span className="landing__gradient-text">{t('landing.headline_2')}</span>
                     </h2>
                     <p className="landing__subtitle">
-                        Лёгкий виджет для сбора обратной связи. Скриншоты, метаданные
-                        и отправка в Telegram / Notion — автоматически.
+                        {t('landing.subtitle')}
                     </p>
                     <div className="landing__cta">
                         <button className="btn btn--primary btn--lg" onClick={() => navigate('/auth')}>
-                            🚀 Попробовать бесплатно
+                            {t('landing.cta_primary')}
                         </button>
-                        <a href="#demo" className="btn btn--ghost btn--lg">Смотреть демо ↓</a>
+                        <a href="#demo" className="btn btn--ghost btn--lg">{t('landing.cta_secondary')}</a>
                     </div>
                 </div>
             </header>
@@ -47,66 +48,66 @@ export default function LandingPage() {
             <section className="landing__features">
                 <div className="landing__feature-card">
                     <span className="landing__feature-icon">📸</span>
-                    <h3>Скриншоты</h3>
-                    <p>Пользователь делает скриншот прямо в браузере и может обрезать нужную область.</p>
+                    <h3>{t('landing.feature_screenshots_title')}</h3>
+                    <p>{t('landing.feature_screenshots_desc')}</p>
                 </div>
                 <div className="landing__feature-card">
                     <span className="landing__feature-icon">📱</span>
-                    <h3>Telegram</h3>
-                    <p>Баг-репорты приходят прямо в ваш Telegram-чат. Можно использовать нашего бота или своего.</p>
+                    <h3>{t('landing.feature_telegram_title')}</h3>
+                    <p>{t('landing.feature_telegram_desc')}</p>
                 </div>
                 <div className="landing__feature-card">
                     <span className="landing__feature-icon">📋</span>
-                    <h3>Notion</h3>
-                    <p>Автоматическое создание тикетов в Notion-базе с заполнением всех полей.</p>
+                    <h3>{t('landing.feature_notion_title')}</h3>
+                    <p>{t('landing.feature_notion_desc')}</p>
                 </div>
                 <div className="landing__feature-card">
                     <span className="landing__feature-icon">🔧</span>
-                    <h3>Метаданные</h3>
-                    <p>URL, браузер, ОС, размер экрана — всё собирается автоматически.</p>
+                    <h3>{t('landing.feature_meta_title')}</h3>
+                    <p>{t('landing.feature_meta_desc')}</p>
                 </div>
             </section>
 
             {/* Demo Section */}
             <section className="landing__demo" id="demo">
-                <h2 className="landing__section-title">Попробуйте прямо сейчас</h2>
+                <h2 className="landing__section-title">{t('landing.demo_title')}</h2>
                 <p className="landing__section-desc">
-                    Нажмите на кнопку <strong>🐞</strong> в правом нижнем углу экрана — это и&nbsp;есть виджет.
+                    {t('landing.demo_desc_1')}<strong>{t('landing.demo_desc_icon')}</strong>{t('landing.demo_desc_2')}
                 </p>
                 <div className="landing__demo-hint">
                     <span className="landing__demo-arrow">👇</span>
-                    Виджет активен на этой странице
+                    {t('landing.demo_hint')}
                 </div>
             </section>
 
             {/* How it works */}
             <section className="landing__how">
-                <h2 className="landing__section-title">Как подключить</h2>
+                <h2 className="landing__section-title">{t('landing.how_title')}</h2>
                 <div className="landing__steps">
                     <div className="landing__step">
                         <div className="landing__step-num">1</div>
-                        <h3>Зарегистрируйтесь</h3>
-                        <p>Создайте аккаунт и получите API-ключ.</p>
+                        <h3>{t('landing.step_1_title')}</h3>
+                        <p>{t('landing.step_1_desc')}</p>
                     </div>
                     <div className="landing__step">
                         <div className="landing__step-num">2</div>
-                        <h3>Добавьте сниппет</h3>
-                        <p>Вставьте 3 строки кода на ваш сайт.</p>
+                        <h3>{t('landing.step_2_title')}</h3>
+                        <p>{t('landing.step_2_desc')}</p>
                     </div>
                     <div className="landing__step">
                         <div className="landing__step-num">3</div>
-                        <h3>Получайте репорты</h3>
-                        <p>Баги приходят в Telegram, Notion или в дашборд.</p>
+                        <h3>{t('landing.step_3_title')}</h3>
+                        <p>{t('landing.step_3_desc')}</p>
                     </div>
                 </div>
             </section>
 
             {/* CTA */}
             <section className="landing__bottom-cta">
-                <h2>Готовы начать?</h2>
-                <p>Бесплатная регистрация, без карты.</p>
+                <h2>{t('landing.cta_bottom_title')}</h2>
+                <p>{t('landing.cta_bottom_desc')}</p>
                 <button className="btn btn--primary btn--lg" onClick={() => navigate('/auth')}>
-                    🚀 Создать аккаунт
+                    {t('landing.cta_bottom_btn')}
                 </button>
             </section>
 
@@ -117,7 +118,7 @@ export default function LandingPage() {
                     <Link to="/terms">Terms of Use</Link>
                     <Link to="/dpa">DPA</Link>
                 </div>
-                <p>Errora © {new Date().getFullYear()} · Сделано с 🐞</p>
+                <p>Errora © {new Date().getFullYear()} · {t('landing.footer_made_with')}</p>
             </footer>
         </div>
     );

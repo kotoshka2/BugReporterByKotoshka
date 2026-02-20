@@ -20,6 +20,54 @@
  *   DASHBOARD_URL         — Dashboard base URL for post-OAuth redirect
  */
 
+const translations = {
+    en: {
+        new_bug_report: '🐞 New bug report',
+        comment: '💬 Comment:',
+        url: '🌐 URL',
+        browser: '🖥 Browser',
+        os: '💻 OS',
+        screen: '📐 Screen',
+        time: '🕐 Time',
+        console_logs: '📋 Console (last {COUNT})',
+        footer_text: 'Errora Bug Reporter',
+        no_comment: '(no comment)',
+        status: 'Status',
+        status_new: 'New',
+        attachments: 'Attachments',
+        screenshot: 'Screenshot',
+        console: 'Console Logs'
+    },
+    ru: {
+        new_bug_report: '🐞 Новый баг-репорт',
+        comment: '💬 Комментарий:',
+        url: '🌐 URL',
+        browser: '🖥 Браузер',
+        os: '💻 ОС',
+        screen: '📐 Экран',
+        time: '🕐 Время',
+        console_logs: '📋 Консоль (последние {COUNT})',
+        footer_text: 'Errora Bug Reporter',
+        no_comment: '(без комментария)',
+        status: 'Статус',
+        status_new: 'Новый',
+        attachments: 'Вложения',
+        screenshot: 'Скриншот',
+        console: '📋 Консоль'
+    }
+};
+
+function t(key, lang = 'en', params = {}) {
+    const dict = translations[lang] || translations['en'];
+    let str = dict[key] || translations['en'][key] || key;
+
+    Object.keys(params).forEach(p => {
+        str = str.replace(`{${p}}`, params[p]);
+    });
+
+    return str;
+}
+
 export default {
     async fetch(request, env) {
         // ── CORS preflight ──
@@ -125,8 +173,9 @@ async function handleReport(request, env) {
         }
 
         // ── Build report object ──
+        const lang = client.language || 'en';
         const report = {
-            comment: comment || '(no comment)',
+            comment: comment || t('no_comment', lang),
             screenshotUrl,
             metadata: metadata || {},
             consoleLogs: Array.isArray(consoleLogs) ? consoleLogs : [],
@@ -137,20 +186,20 @@ async function handleReport(request, env) {
         const integrationTasks = {};
 
         if (client.tg_chat_id && (client.tg_bot_token || env.SYSTEM_TG_BOT_TOKEN)) {
-            integrationTasks.telegram = sendToTelegram(report, client, env);
+            integrationTasks.telegram = sendToTelegram(report, client, env, lang);
         }
 
         const notionToken = client.notion_access_token || client.notion_key;
         if (notionToken && client.notion_db_id) {
-            integrationTasks.notion = sendToNotion(report, client, notionToken);
+            integrationTasks.notion = sendToNotion(report, client, notionToken, lang);
         }
 
         if (client.discord_bot_token && client.discord_channel_id) {
-            integrationTasks.discord = sendToDiscord(report, client);
+            integrationTasks.discord = sendToDiscord(report, client, lang);
         }
 
         if (client.slack_webhook_url) {
-            integrationTasks.slack = sendToSlack(report, client);
+            integrationTasks.slack = sendToSlack(report, client, lang);
         }
 
         const keys = Object.keys(integrationTasks);
@@ -328,23 +377,23 @@ async function uploadToSupabase(base64Data, env) {
 // Discord Integration
 // ────────────────────────────────────────────
 
-async function sendToDiscord(report, client) {
+async function sendToDiscord(report, client, lang = 'en') {
     const token = client.discord_bot_token;
     const channelId = client.discord_channel_id;
     const meta = report.metadata || {};
 
     const embed = {
-        title: '🐞 Новый баг-репорт',
+        title: t('new_bug_report', lang),
         color: 0xff4444,
         description: report.comment,
         fields: [
-            { name: '🌐 URL', value: meta.url || 'N/A', inline: false },
-            { name: '🖥 Браузер', value: meta.browser || 'N/A', inline: true },
-            { name: '💻 ОС', value: meta.os || 'N/A', inline: true },
-            { name: '📐 Экран', value: meta.screenSize || 'N/A', inline: true },
+            { name: t('url', lang), value: meta.url || 'N/A', inline: false },
+            { name: t('browser', lang), value: meta.browser || 'N/A', inline: true },
+            { name: t('os', lang), value: meta.os || 'N/A', inline: true },
+            { name: t('screen', lang), value: meta.screenSize || 'N/A', inline: true },
         ],
         timestamp: report.receivedAt,
-        footer: { text: 'Errora Bug Reporter' },
+        footer: { text: t('footer_text', lang) },
     };
 
     // Add console logs field if present
@@ -354,7 +403,7 @@ async function sendToDiscord(report, client) {
             .map((l) => `[${(l.level || 'log').toUpperCase()}] ${(l.message || String(l)).slice(0, 100)}`)
             .join('\n');
         embed.fields.push({
-            name: `📋 Консоль (последние ${Math.min(report.consoleLogs.length, 10)})`,
+            name: t('console_logs', lang, { COUNT: Math.min(report.consoleLogs.length, 10) }),
             value: '```\n' + logsText.slice(0, 1000) + '\n```',
             inline: false,
         });
@@ -385,20 +434,20 @@ async function sendToDiscord(report, client) {
 // Telegram Integration
 // ────────────────────────────────────────────
 
-async function sendToTelegram(report, client, env) {
+async function sendToTelegram(report, client, env, lang = 'en') {
     const token = client.tg_bot_token || env.SYSTEM_TG_BOT_TOKEN;
     const meta = report.metadata;
 
     let caption = [
-        '🐞 *Новый баг-репорт*',
+        `*${t('new_bug_report', lang)}*`,
         '',
-        `💬 *Комментарий:* ${escapeMarkdown(report.comment)}`,
+        `*${t('comment', lang)}* ${escapeMarkdown(report.comment)}`,
         '',
-        `🌐 *URL:* ${escapeMarkdown(meta.url || 'N/A')}`,
-        `🖥 *Браузер:* ${escapeMarkdown(meta.browser || 'N/A')}`,
-        `💻 *ОС:* ${escapeMarkdown(meta.os || 'N/A')}`,
-        `📐 *Экран:* ${escapeMarkdown(meta.screenSize || 'N/A')}`,
-        `🕐 *Время:* ${report.receivedAt}`,
+        `*${t('url', lang)}:* ${escapeMarkdown(meta.url || 'N/A')}`,
+        `*${t('browser', lang)}:* ${escapeMarkdown(meta.browser || 'N/A')}`,
+        `*${t('os', lang)}:* ${escapeMarkdown(meta.os || 'N/A')}`,
+        `*${t('screen', lang)}:* ${escapeMarkdown(meta.screenSize || 'N/A')}`,
+        `*${t('time', lang)}:* ${report.receivedAt}`,
     ].join('\n');
 
     // Append console logs section if present
@@ -407,7 +456,9 @@ async function sendToTelegram(report, client, env) {
             .slice(-15) // last 15 entries for TG readability
             .map(l => `\`[${l.level.toUpperCase()}]\` ${escapeMarkdown(l.message.slice(0, 120))}`)
             .join('\n');
-        const section = `\n\n📋 *Консоль (последние ${Math.min(report.consoleLogs.length, 15)}):*\n${logsSection}`;
+        const count = Math.min(report.consoleLogs.length, 15);
+        const sectionTitle = t('console_logs', lang, { COUNT: count });
+        const section = `\n\n*${sectionTitle}:*\n${logsSection}`;
         // TG caption max is 1024 for photos, 4096 for messages
         caption += section;
     }
@@ -458,7 +509,7 @@ function escapeMarkdown(text) {
 // Notion Integration
 // ────────────────────────────────────────────
 
-async function sendToNotion(report, client, token) {
+async function sendToNotion(report, client, token, lang = 'en') {
     const meta = report.metadata;
 
     const properties = {
@@ -504,13 +555,13 @@ async function sendToNotion(report, client, token) {
                 },
             ],
         },
-        Status: {
-            select: { name: 'New' },
+        [t('status', 'en')]: {
+            select: { name: t('status_new', 'en') }, // Values here often must match the Notion DB English properties
         },
-        Attachments: {
+        [t('attachments', 'en')]: {
             files: report.screenshotUrl ? [
                 {
-                    name: 'Screenshot',
+                    name: t('screenshot', lang),
                     external: { url: report.screenshotUrl }
                 }
             ] : []
@@ -561,7 +612,7 @@ async function sendToNotion(report, client, token) {
             object: 'block',
             type: 'heading_3',
             heading_3: {
-                rich_text: [{ text: { content: '📋 Console Logs' } }]
+                rich_text: [{ text: { content: t('console', lang) } }]
             }
         });
         // Split into chunks of 2000 chars (Notion block limit)
@@ -605,26 +656,26 @@ async function sendToNotion(report, client, token) {
 // Slack Integration
 // ────────────────────────────────────────────
 
-async function sendToSlack(report, client) {
+async function sendToSlack(report, client, lang = 'en') {
     const webhookUrl = client.slack_webhook_url;
     const meta = report.metadata || {};
 
     const blocks = [
         {
             type: 'header',
-            text: { type: 'plain_text', text: '🐞 Новый баг-репорт', emoji: true },
+            text: { type: 'plain_text', text: t('new_bug_report', lang), emoji: true },
         },
         {
             type: 'section',
-            text: { type: 'mrkdwn', text: `*💬 Комментарий:*\n${report.comment}` },
+            text: { type: 'mrkdwn', text: `*${t('comment', lang)}*\n${report.comment}` },
         },
         {
             type: 'section',
             fields: [
-                { type: 'mrkdwn', text: `*🌐 URL:*\n${meta.url || 'N/A'}` },
-                { type: 'mrkdwn', text: `*🖥 Браузер:*\n${meta.browser || 'N/A'}` },
-                { type: 'mrkdwn', text: `*💻 ОС:*\n${meta.os || 'N/A'}` },
-                { type: 'mrkdwn', text: `*📐 Экран:*\n${meta.screenSize || 'N/A'}` },
+                { type: 'mrkdwn', text: `*${t('url', lang)}:*\n${meta.url || 'N/A'}` },
+                { type: 'mrkdwn', text: `*${t('browser', lang)}:*\n${meta.browser || 'N/A'}` },
+                { type: 'mrkdwn', text: `*${t('os', lang)}:*\n${meta.os || 'N/A'}` },
+                { type: 'mrkdwn', text: `*${t('screen', lang)}:*\n${meta.screenSize || 'N/A'}` },
             ],
         },
     ];
@@ -635,11 +686,15 @@ async function sendToSlack(report, client) {
             .slice(-10)
             .map((l) => `[${(l.level || 'log').toUpperCase()}] ${(l.message || String(l)).slice(0, 100)}`)
             .join('\n');
+
+        const count = Math.min(report.consoleLogs.length, 10);
+        const consoleLabel = t('console_logs', lang, { COUNT: count });
+
         blocks.push({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `*📋 Консоль (последние ${Math.min(report.consoleLogs.length, 10)}):*\n\`\`\`${logsText.slice(0, 2900)}\`\`\``,
+                text: `*${consoleLabel}:*\n\`\`\`${logsText.slice(0, 2900)}\`\`\``,
             },
         });
     }
@@ -656,7 +711,7 @@ async function sendToSlack(report, client) {
     blocks.push({
         type: 'context',
         elements: [
-            { type: 'mrkdwn', text: `Errora Bug Reporter • ${report.receivedAt}` },
+            { type: 'mrkdwn', text: `${t('footer_text', lang)} • ${report.receivedAt}` },
         ],
     });
 

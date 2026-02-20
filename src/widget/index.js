@@ -134,6 +134,53 @@ const ICON_BUG = `<svg viewBox="0 0 24 24"><path d="M8 2l1.88 1.88M16 2l-1.88 1.
 
 const ICON_CAMERA = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
+// ── i18n Dictionary ──────────────────────────────────────
+
+const translations = {
+    en: {
+        placeholder_comment: "Describe the issue...",
+        placeholder_screenshot: "Click to take a screenshot",
+        btn_cancel: "Cancel",
+        btn_submit: "Send",
+        btn_sending: "Sending...",
+        label_browser: "Browser:",
+        label_os: "OS:",
+        label_screen: "Screen:",
+        label_url: "URL:",
+        retake_title: "Screenshot looks wrong? Click for an exact capture",
+        toast_success_send: "Bug report sent! Thank you 🎉",
+        toast_success_retake: "Screenshot updated (HD) ✨",
+        toast_error_send: "Failed to send. Please try again.",
+        toast_error_empty: "Please add a comment or a screenshot",
+        toast_error_retake: "Failed to capture. Try selecting 'This tab'.",
+        crop_hint: "Select screen area for the screenshot. ESC — cancel."
+    },
+    ru: {
+        placeholder_comment: "Опишите проблему…",
+        placeholder_screenshot: "Нажмите, чтобы сделать скриншот",
+        btn_cancel: "Отмена",
+        btn_submit: "Отправить",
+        btn_sending: "Отправка…",
+        label_browser: "Browser:",
+        label_os: "OS:",
+        label_screen: "Screen:",
+        label_url: "URL:",
+        retake_title: "Скриншот выглядит криво? Нажмите для точного снимка",
+        toast_success_send: "Баг-репорт отправлен! Спасибо 🎉",
+        toast_success_retake: "Скриншот обновлён (HD) ✨",
+        toast_error_send: "Ошибка отправки. Попробуйте ещё раз.",
+        toast_error_empty: "Добавьте комментарий или скриншот",
+        toast_error_retake: "Не удалось сделать снимок. Попробуйте выбрать 'Эта вкладка'.",
+        crop_hint: "Выделите область экрана для скриншота. ESC — отмена."
+    }
+};
+
+let currentLang = 'en';
+
+function t(key) {
+    return translations[currentLang]?.[key] || translations['en'][key] || key;
+}
+
 // ── Widget Class ────────────────────────────────────────
 
 class ErroraWidget {
@@ -141,11 +188,13 @@ class ErroraWidget {
         this.config = {
             position: config.position || 'bottom-right',
             apiKey: config.apiKey || '',
-            lang: config.lang || 'ru',
+            lang: config.lang || 'en',
             mode: config.mode || 'public',
             secretHash: config.secretHash || '',
             ...config,
         };
+
+        currentLang = this.config.lang === 'ru' ? 'ru' : 'en';
 
         this.screenshotDataUrl = null;
         this.isOpen = false;
@@ -250,21 +299,21 @@ class ErroraWidget {
         <div class="errora-screenshot-area" id="errora-screenshot-area">
           <div class="errora-screenshot-area__placeholder">
             ${ICON_CAMERA}
-            <span>Нажмите, чтобы сделать скриншот</span>
+            <span>${t('placeholder_screenshot')}</span>
           </div>
         </div>
-        <textarea class="errora-textarea" id="errora-comment" placeholder="Опишите проблему…" rows="3"></textarea>
+        <textarea class="errora-textarea" id="errora-comment" placeholder="${t('placeholder_comment')}" rows="3"></textarea>
         <div class="errora-meta">
-          <div class="errora-meta__row"><span class="errora-meta__label">Browser:</span><span>${metadata.browser}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">OS:</span><span>${metadata.os}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">Screen:</span><span>${metadata.screenSize}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">URL:</span><span style="word-break:break-all">${metadata.url}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${metadata.browser}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${metadata.os}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${metadata.screenSize}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${metadata.url}</span></div>
         </div>
       </div>
       <div class="errora-modal__footer">
-        <button class="errora-btn errora-btn--ghost" id="errora-cancel">Отмена</button>
+        <button class="errora-btn errora-btn--ghost" id="errora-cancel">${t('btn_cancel')}</button>
         <button class="errora-btn errora-btn--primary" id="errora-submit">
-          Отправить
+          ${t('btn_submit')}
         </button>
       </div>
     `;
@@ -311,10 +360,10 @@ class ErroraWidget {
         const metaEl = this.modal.querySelector('.errora-meta');
         if (metaEl) {
             metaEl.innerHTML = `
-        <div class="errora-meta__row"><span class="errora-meta__label">Browser:</span><span>${meta.browser}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">OS:</span><span>${meta.os}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">Screen:</span><span>${meta.screenSize}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">URL:</span><span style="word-break:break-all">${meta.url}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${meta.browser}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${meta.os}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${meta.screenSize}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${meta.url}</span></div>
       `;
         }
     }
@@ -330,7 +379,7 @@ class ErroraWidget {
         await this._wait(350);
 
         // Show crop overlay
-        const rect = await showCropOverlay(this.shadow);
+        const rect = await showCropOverlay(this.shadow, currentLang);
 
         if (!rect) {
             // User cancelled, re-show modal
@@ -357,7 +406,7 @@ class ErroraWidget {
     _showScreenshotPreview(dataUrl) {
         const area = this.modal.querySelector('#errora-screenshot-area');
         const retakeHtml = isNativeScreenshotSupported()
-            ? `<button class="errora-retake-btn" title="Скриншот выглядит криво? Нажмите для точного снимка">
+            ? `<button class="errora-retake-btn" title="${t('retake_title')}">
                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                  HD
                </button>`
@@ -390,10 +439,10 @@ class ErroraWidget {
             const dataUrl = await captureNativeScreenshot();
             this.screenshotDataUrl = dataUrl;
             this._showScreenshotPreview(dataUrl);
-            this._showToast('Скриншот обновлён (HD) ✨', 'success');
+            this._showToast(t('toast_success_retake'), 'success');
         } catch (err) {
             console.warn('[ErroraWidget] Native screenshot failed:', err);
-            this._showToast('Не удалось сделать снимок. Попробуйте выбрать "Эта вкладка".', 'error');
+            this._showToast(t('toast_error_retake'), 'error');
         } finally {
             this.modal.classList.add('errora-modal--visible');
             this.backdrop.classList.add('errora-backdrop--visible');
@@ -405,13 +454,13 @@ class ErroraWidget {
     async _submit() {
         const comment = this.modal.querySelector('#errora-comment').value.trim();
         if (!comment && !this.screenshotDataUrl) {
-            this._showToast('Добавьте комментарий или скриншот', 'error');
+            this._showToast(t('toast_error_empty'), 'error');
             return;
         }
 
         const submitBtn = this.modal.querySelector('#errora-submit');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="errora-spinner"></span> Отправка…';
+        submitBtn.innerHTML = `<span class="errora-spinner"></span> ${t('btn_sending')}`;
 
         try {
             const metadata = collectMetadata();
@@ -424,13 +473,13 @@ class ErroraWidget {
             });
 
             this.close();
-            this._showToast('Баг-репорт отправлен! Спасибо 🎉', 'success');
+            this._showToast(t('toast_success_send'), 'success');
         } catch (err) {
             console.error('[ErroraWidget] Submit failed:', err);
-            this._showToast('Ошибка отправки. Попробуйте ещё раз.', 'error');
+            this._showToast(t('toast_error_send'), 'error');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Отправить';
+            submitBtn.innerHTML = t('btn_submit');
         }
     }
 
@@ -454,12 +503,11 @@ class ErroraWidget {
 
         this.screenshotDataUrl = null;
 
-        const area = this.modal.querySelector('#errora-screenshot-area');
         if (area) {
             area.innerHTML = `
         <div class="errora-screenshot-area__placeholder">
           ${ICON_CAMERA}
-          <span>Нажмите, чтобы сделать скриншот</span>
+          <span>${t('placeholder_screenshot')}</span>
         </div>
       `;
         }

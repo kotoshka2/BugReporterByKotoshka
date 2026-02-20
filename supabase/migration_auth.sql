@@ -13,7 +13,7 @@ create unique index if not exists idx_clients_user_id on clients (user_id);
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
-security definer set search_path = public
+security definer set search_path = public, extensions
 as $$
 declare
   new_api_key text;

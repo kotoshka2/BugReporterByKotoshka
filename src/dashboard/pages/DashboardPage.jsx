@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import SettingsPage from './SettingsPage';
-import ReportsPage from './ReportsPage';
 import IntegrationsPage from './IntegrationsPage';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage({ session }) {
+    const { t, i18n } = useTranslation();
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -22,6 +23,10 @@ export default function DashboardPage({ session }) {
 
         if (error) {
             console.error('Failed to fetch client:', error);
+        } else if (data?.language && data.language !== i18n.language) {
+            // Apply client's language preference on load
+            i18n.changeLanguage(data.language);
+            localStorage.setItem('errora_lang', data.language);
         }
         setClient(data);
         setLoading(false);
@@ -29,6 +34,17 @@ export default function DashboardPage({ session }) {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+    };
+
+    const toggleLanguage = async () => {
+        const newLang = i18n.language === 'en' ? 'ru' : 'en';
+        i18n.changeLanguage(newLang);
+        localStorage.setItem('errora_lang', newLang);
+
+        if (client?.id) {
+            // Persist preference to DB
+            supabase.from('clients').update({ language: newLang }).eq('id', client.id).then();
+        }
     };
 
     if (loading) {
@@ -57,20 +73,29 @@ export default function DashboardPage({ session }) {
 
                 <nav className="sidebar__nav">
                     <NavLink to="/dashboard/settings" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
-                        ⚙️ Настройки
+                        {t('dashboard.title_settings')}
                     </NavLink>
                     <NavLink to="/dashboard/integrations" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
-                        🔌 Интеграции
+                        {t('dashboard.title_integrations')}
                     </NavLink>
                     <NavLink to="/dashboard/reports" className={({ isActive }) => `nav-link ${isActive ? 'nav-link--active' : ''}`}>
-                        📋 Репорты
+                        {t('dashboard.title_reports')}
                     </NavLink>
                 </nav>
 
                 <div className="sidebar__footer">
-                    <div className="sidebar__user">{session.user.email}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div className="sidebar__user" style={{ marginBottom: 0 }}>{session.user.email}</div>
+                        <button
+                            onClick={toggleLanguage}
+                            title="Switch Language"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                        >
+                            {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                        </button>
+                    </div>
                     <button onClick={handleLogout} className="btn btn--ghost btn--sm">
-                        Выйти
+                        {t('dashboard.nav_logout')}
                     </button>
                 </div>
             </aside>

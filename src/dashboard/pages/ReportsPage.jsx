@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from 'react-i18next';
 
 export default function ReportsPage({ client }) {
+    const { t } = useTranslation();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -28,7 +30,7 @@ export default function ReportsPage({ client }) {
     if (loading) {
         return (
             <div className="page">
-                <h1 className="page__title">📋 Репорты</h1>
+                <h1 className="page__title">{t('dashboard.title_reports')}</h1>
                 <div className="loading-spinner" />
             </div>
         );
@@ -37,15 +39,15 @@ export default function ReportsPage({ client }) {
     return (
         <div className="page">
             <h1 className="page__title">
-                📋 Репорты
+                {t('dashboard.title_reports')}
                 <span className="badge">{reports.length}</span>
             </h1>
 
             {reports.length === 0 ? (
                 <div className="empty-state">
                     <span className="empty-state__icon">📭</span>
-                    <h3>Пока нет репортов</h3>
-                    <p>Установите виджет на сайт и отправьте первый баг-репорт.</p>
+                    <h3>{t('reports.empty_title')}</h3>
+                    <p>{t('reports.empty_desc')}</p>
                 </div>
             ) : (
                 <div className="reports-grid">
@@ -66,7 +68,7 @@ export default function ReportsPage({ client }) {
                             </div>
 
                             <p className="report-card__comment">
-                                {report.comment || '(без комментария)'}
+                                {report.comment || t('reports.no_comment')}
                             </p>
 
                             {selectedReport?.id === report.id && (
@@ -77,10 +79,10 @@ export default function ReportsPage({ client }) {
                                         </a>
                                     )}
                                     <div className="report-card__meta">
-                                        <div><strong>URL:</strong> {report.page_url || '—'}</div>
-                                        <div><strong>Browser:</strong> {report.browser || '—'}</div>
-                                        <div><strong>OS:</strong> {report.os || '—'}</div>
-                                        <div><strong>Screen:</strong> {report.screen_size || '—'}</div>
+                                        <div><strong>{t('reports.meta_url')}:</strong> {report.page_url || '—'}</div>
+                                        <div><strong>{t('reports.meta_browser')}:</strong> {report.browser || '—'}</div>
+                                        <div><strong>{t('reports.meta_os')}:</strong> {report.os || '—'}</div>
+                                        <div><strong>{t('reports.meta_screen')}:</strong> {report.screen_size || '—'}</div>
                                     </div>
                                 </div>
                             )}

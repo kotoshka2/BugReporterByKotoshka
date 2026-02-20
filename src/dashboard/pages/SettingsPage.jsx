@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from 'react-i18next';
 
 // ── SHA-256 helper ──
 async function sha256(message) {
@@ -16,6 +17,7 @@ export default function SettingsPage({ client, onUpdate }) {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [copied, setCopied] = useState(false);
+    const { t } = useTranslation();
 
     // ── Widget Visibility ──
     const [widgetMode, setWidgetMode] = useState(client?.widget_mode || 'public');
@@ -51,9 +53,9 @@ export default function SettingsPage({ client, onUpdate }) {
             .eq('id', client.id);
 
         if (error) {
-            setMessage('Ошибка сохранения: ' + error.message);
+            setMessage(t('settings.msg_error') + error.message);
         } else {
-            setMessage('Настройки сохранены! ✅');
+            setMessage(t('settings.msg_success'));
             setSecretPassword(''); // Clear password field after save
             onUpdate();
         }
@@ -74,16 +76,16 @@ export default function SettingsPage({ client, onUpdate }) {
 
     return (
         <div className="page">
-            <h1 className="page__title">⚙️ Настройки</h1>
+            <h1 className="page__title">{t('dashboard.title_settings')}</h1>
 
             {/* API Key Section */}
             <div className="card">
-                <h2 className="card__title">Ваш API Key</h2>
-                <p className="card__desc">Используйте этот ключ для установки виджета на ваш сайт.</p>
+                <h2 className="card__title">{t('settings.api_key_title')}</h2>
+                <p className="card__desc">{t('settings.api_key_desc')}</p>
                 <div className="api-key-box">
                     <code>{client?.api_key || '—'}</code>
                     <button onClick={copySnippet} className="btn btn--sm btn--outline">
-                        {copied ? '✅ Скопировано' : '📋 Копировать сниппет'}
+                        {copied ? t('settings.btn_copied') : t('settings.btn_copy')}
                     </button>
                 </div>
             </div>
@@ -91,13 +93,12 @@ export default function SettingsPage({ client, onUpdate }) {
             {/* Domain Protection */}
             <form onSubmit={handleSave}>
                 <div className="card">
-                    <h2 className="card__title">🔒 Разрешённые домены</h2>
+                    <h2 className="card__title">{t('settings.domains_title')}</h2>
                     <p className="card__desc">
-                        Укажите домены, с которых разрешено отправлять баг-репорты.
-                        Если оставить пустым — запросы принимаются с любого сайта.
+                        {t('settings.domains_desc')}
                     </p>
                     <div className="form-group">
-                        <label htmlFor="allowed-domains">Домены (через запятую)</label>
+                        <label htmlFor="allowed-domains">{t('settings.domains_label')}</label>
                         <input
                             id="allowed-domains"
                             type="text"
@@ -110,9 +111,9 @@ export default function SettingsPage({ client, onUpdate }) {
 
                 {/* Widget Visibility */}
                 <div className="card">
-                    <h2 className="card__title">👁️ Видимость виджета</h2>
+                    <h2 className="card__title">{t('settings.visibility_title')}</h2>
                     <p className="card__desc">
-                        Выберите, кто может видеть виджет баг-репортов на вашем сайте.
+                        {t('settings.visibility_desc')}
                     </p>
 
                     <div className="bot-mode-toggle">
@@ -128,8 +129,8 @@ export default function SettingsPage({ client, onUpdate }) {
                                 onChange={() => setWidgetMode('public')}
                             />
                             <div>
-                                <strong>🌍 Публичный</strong>
-                                <span>Виджет видят все посетители сайта</span>
+                                <strong>{t('settings.mode_public')}</strong>
+                                <span>{t('settings.mode_public_desc')}</span>
                             </div>
                         </label>
                         <label
@@ -144,8 +145,8 @@ export default function SettingsPage({ client, onUpdate }) {
                                 onChange={() => setWidgetMode('restricted')}
                             />
                             <div>
-                                <strong>🔐 Ограниченный</strong>
-                                <span>Только по Magic Link с паролем</span>
+                                <strong>{t('settings.mode_restricted')}</strong>
+                                <span>{t('settings.mode_restricted_desc')}</span>
                             </div>
                         </label>
                     </div>
@@ -153,24 +154,24 @@ export default function SettingsPage({ client, onUpdate }) {
                     {widgetMode === 'restricted' && (
                         <>
                             <div className="form-group" style={{ marginTop: '16px' }}>
-                                <label htmlFor="secret-password">Пароль доступа</label>
+                                <label htmlFor="secret-password">{t('settings.password_label')}</label>
                                 <input
                                     id="secret-password"
                                     type="text"
                                     value={secretPassword}
                                     onChange={(e) => setSecretPassword(e.target.value)}
-                                    placeholder={client?.widget_secret_hash ? 'Введите новый пароль для смены…' : 'Введите пароль…'}
+                                    placeholder={client?.widget_secret_hash ? t('settings.password_placeholder_change') : t('settings.password_placeholder_new')}
                                 />
                                 {client?.widget_secret_hash && !secretPassword && (
                                     <small style={{ color: 'var(--color-text-muted, #94a3b8)', marginTop: '4px', display: 'block' }}>
-                                        Пароль уже установлен. Оставьте пустым, чтобы не менять.
+                                        {t('settings.password_hint')}
                                     </small>
                                 )}
                             </div>
 
                             {secretPassword && (
                                 <div className="bot-instructions" style={{ marginTop: '12px' }}>
-                                    <p><strong>🔗 Magic Link для тестировщиков:</strong></p>
+                                    <p><strong>{t('settings.magic_link_title')}</strong></p>
                                     <div className="api-key-box" style={{ marginTop: '8px' }}>
                                         <code style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
                                             ?errora_secret={encodeURIComponent(secretPassword)}
@@ -185,12 +186,11 @@ export default function SettingsPage({ client, onUpdate }) {
                                                 setTimeout(() => setLinkCopied(false), 2000);
                                             }}
                                         >
-                                            {linkCopied ? '✅ Скопировано' : '📋 Копировать'}
+                                            {linkCopied ? t('settings.btn_copied') : t('settings.btn_copy').replace(' сниппет', '').replace(' snippet', '')}
                                         </button>
                                     </div>
                                     <small style={{ color: 'var(--color-text-muted, #94a3b8)', marginTop: '8px', display: 'block' }}>
-                                        Добавьте этот параметр к URL вашего сайта и отправьте тестировщику.
-                                        Не забудьте сохранить настройки!
+                                        {t('settings.magic_link_hint')}
                                     </small>
                                 </div>
                             )}
@@ -205,7 +205,7 @@ export default function SettingsPage({ client, onUpdate }) {
                 )}
 
                 <button type="submit" className="btn btn--primary" disabled={saving}>
-                    {saving ? 'Сохранение…' : 'Сохранить настройки'}
+                    {saving ? t('settings.btn_saving') : t('settings.btn_save')}
                 </button>
             </form>
         </div>
