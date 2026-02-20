@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next';
 
 export default function LandingPage() {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+
+    const toggleLanguage = () => {
+        const newLang = i18n.language === 'en' ? 'ru' : 'en';
+        i18n.changeLanguage(newLang);
+        localStorage.setItem('errora_lang', newLang);
+    };
 
     return (
         <div className="landing">
@@ -22,9 +28,18 @@ export default function LandingPage() {
                         <span>🐞</span>
                         <h1>Errora</h1>
                     </div>
-                    <button className="btn btn--outline btn--sm" onClick={() => navigate('/auth')}>
-                        {t('landing.login')}
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <button
+                            onClick={toggleLanguage}
+                            title="Switch Language"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                        >
+                            {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                        </button>
+                        <button className="btn btn--outline btn--sm" onClick={() => navigate('/auth')}>
+                            {t('landing.login')}
+                        </button>
+                    </div>
                 </nav>
 
                 <div className="landing__hero-content">

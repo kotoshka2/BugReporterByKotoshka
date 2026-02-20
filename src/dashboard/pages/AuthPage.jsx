@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useTranslation } from 'react-i18next';
 
 export default function AuthPage() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -11,6 +11,12 @@ export default function AuthPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
+
+    const toggleLanguage = () => {
+        const newLang = i18n.language === 'en' ? 'ru' : 'en';
+        i18n.changeLanguage(newLang);
+        localStorage.setItem('errora_lang', newLang);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,7 +54,14 @@ export default function AuthPage() {
             </div>
 
             <div className="auth-card">
-                <div className="auth-header">
+                <div className="auth-header" style={{ position: 'relative' }}>
+                    <button
+                        onClick={toggleLanguage}
+                        title="Switch Language"
+                        style={{ position: 'absolute', right: 0, top: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                    >
+                        {i18n.language === 'en' ? '🇺🇸' : '🇷🇺'}
+                    </button>
                     <span className="auth-logo">🐞</span>
                     <h1>Errora</h1>
                     <p>{isLogin ? t('auth.login_title') : t('auth.register_title')}</p>
