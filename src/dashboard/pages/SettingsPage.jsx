@@ -24,6 +24,10 @@ export default function SettingsPage({ client, onUpdate }) {
     const [secretPassword, setSecretPassword] = useState('');
     const [linkCopied, setLinkCopied] = useState(false);
 
+    // ── Widget Configurator ──
+    const [snippetLang, setSnippetLang] = useState('en');
+    const [snippetPosition, setSnippetPosition] = useState('bottom-right');
+
     const handleSave = async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -65,7 +69,9 @@ export default function SettingsPage({ client, onUpdate }) {
     const copySnippet = () => {
         const snippet = `<script>
   window.ErroraWidgetConfig = {
-    apiKey: '${client?.api_key || 'YOUR_API_KEY'}'
+    apiKey: '${client?.api_key || 'YOUR_API_KEY'}',
+    lang: '${snippetLang}',
+    position: '${snippetPosition}'
   };
 </script>
 <script src="https://today-is-friday.tech/errora/errora-widget.iife.js" defer></script>`;
@@ -78,13 +84,48 @@ export default function SettingsPage({ client, onUpdate }) {
         <div className="page">
             <h1 className="page__title">{t('dashboard.title_settings')}</h1>
 
-            {/* API Key Section */}
+            {/* Widget Configurator */}
             <div className="card">
-                <h2 className="card__title">{t('settings.api_key_title')}</h2>
-                <p className="card__desc">{t('settings.api_key_desc')}</p>
-                <div className="api-key-box">
-                    <code>{client?.api_key || '—'}</code>
-                    <button onClick={copySnippet} className="btn btn--sm btn--outline">
+                <h2 className="card__title">{t('settings.config_title')}</h2>
+                <p className="card__desc">{t('settings.config_desc')}</p>
+
+                <div className="form-row" style={{ marginBottom: '20px' }}>
+                    <div className="form-group">
+                        <label>{t('settings.config_lang_label')}</label>
+                        <select
+                            value={snippetLang}
+                            onChange={(e) => setSnippetLang(e.target.value)}
+                            style={{ padding: '10px 14px', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none' }}
+                        >
+                            <option value="en">{t('settings.config_lang_en')}</option>
+                            <option value="ru">{t('settings.config_lang_ru')}</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>{t('settings.config_pos_label')}</label>
+                        <select
+                            value={snippetPosition}
+                            onChange={(e) => setSnippetPosition(e.target.value)}
+                            style={{ padding: '10px 14px', background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none' }}
+                        >
+                            <option value="bottom-right">{t('settings.config_pos_br')}</option>
+                            <option value="bottom-left">{t('settings.config_pos_bl')}</option>
+                            <option value="top-right">{t('settings.config_pos_tr')}</option>
+                            <option value="top-left">{t('settings.config_pos_tl')}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="api-key-box" style={{ alignItems: 'flex-start' }}>
+                    <code style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{`<script>
+  window.ErroraWidgetConfig = {
+    apiKey: '${client?.api_key || 'YOUR_API_KEY'}',
+    lang: '${snippetLang}',
+    position: '${snippetPosition}'
+  };
+</script>
+<script src="https://today-is-friday.tech/errora/errora-widget.iife.js" defer></script>`}</code>
+                    <button onClick={copySnippet} className="btn btn--sm btn--outline" style={{ marginTop: '0', flexShrink: 0 }}>
                         {copied ? t('settings.btn_copied') : t('settings.btn_copy')}
                     </button>
                 </div>
