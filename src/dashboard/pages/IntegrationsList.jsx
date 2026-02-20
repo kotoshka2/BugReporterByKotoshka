@@ -35,7 +35,7 @@ const INTEGRATIONS = [
         name: 'Discord',
         icon: '🎮',
         description: 'Получайте баг-репорты в Discord-каналы.',
-        comingSoon: true,
+        checkActive: (client) => !!client?.discord_bot_token && !!client?.discord_channel_id,
     },
     {
         id: 'email',

@@ -4,7 +4,7 @@
  * Multi-tenant SaaS Architecture:
  * 1. Validates the API key against the `clients` table in Supabase
  * 2. Uploads screenshot to Supabase Storage
- * 3. Sends notification to the CLIENT's Telegram and/or Notion
+ * 3. Sends notification to the CLIENT's Telegram, Notion, and/or Discord
  * 4. Logs the report in the `reports` table
  *
  * Environment Variables (set via wrangler.toml or `wrangler secret put`):
@@ -116,24 +116,28 @@ async function handleReport(request, env) {
         };
 
         // ── Send to client's integrations (in parallel) ──
-        const tasks = [];
+        const integrationTasks = {};
 
         if (client.tg_chat_id && (client.tg_bot_token || env.SYSTEM_TG_BOT_TOKEN)) {
-            tasks.push(sendToTelegram(report, client, env));
+            integrationTasks.telegram = sendToTelegram(report, client, env);
         }
 
         const notionToken = client.notion_access_token || client.notion_key;
         if (notionToken && client.notion_db_id) {
-            tasks.push(sendToNotion(report, client, notionToken));
+            integrationTasks.notion = sendToNotion(report, client, notionToken);
         }
 
-        const results = await Promise.allSettled(tasks);
+        if (client.discord_bot_token && client.discord_channel_id) {
+            integrationTasks.discord = sendToDiscord(report, client);
+        }
 
-        const tgSent = results[0]?.status === 'fulfilled';
-        const hasNotion = !!(client.notion_access_token || client.notion_key);
-        const notionSent = hasNotion
-            ? results[tasks.length - 1]?.status === 'fulfilled'
-            : false;
+        const keys = Object.keys(integrationTasks);
+        const results = await Promise.allSettled(Object.values(integrationTasks));
+
+        const sentStatus = {};
+        keys.forEach((key, i) => {
+            sentStatus[key] = results[i]?.status === 'fulfilled';
+        });
 
         // Check for errors
         const errors = results
@@ -145,7 +149,7 @@ async function handleReport(request, env) {
         }
 
         // ── Log the report ──
-        await logReport(client.id, report, screenshotUrl, tgSent, notionSent, env);
+        await logReport(client.id, report, screenshotUrl, sentStatus.telegram || false, sentStatus.notion || false, sentStatus.discord || false, env);
 
         return jsonResponse(
             { success: true, message: 'Report received', errors },
@@ -223,7 +227,7 @@ async function getClientByApiKey(apiKey, env) {
 // Report Logging (Supabase REST API)
 // ────────────────────────────────────────────
 
-async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, env) {
+async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, discordSent, env) {
     const meta = report.metadata || {};
 
     const url = `${env.SUPABASE_URL}/rest/v1/reports`;
@@ -248,6 +252,7 @@ async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, en
                 console_logs: report.consoleLogs.length > 0 ? report.consoleLogs : null,
                 tg_sent: tgSent,
                 notion_sent: notionSent,
+                discord_sent: discordSent,
             }),
         });
     } catch (err) {
@@ -294,6 +299,63 @@ async function uploadToSupabase(base64Data, env) {
 
     // Build public URL
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${fileName}`;
+}
+
+// ────────────────────────────────────────────
+// Discord Integration
+// ────────────────────────────────────────────
+
+async function sendToDiscord(report, client) {
+    const token = client.discord_bot_token;
+    const channelId = client.discord_channel_id;
+    const meta = report.metadata || {};
+
+    const embed = {
+        title: '🐞 Новый баг-репорт',
+        color: 0xff4444,
+        description: report.comment,
+        fields: [
+            { name: '🌐 URL', value: meta.url || 'N/A', inline: false },
+            { name: '🖥 Браузер', value: meta.browser || 'N/A', inline: true },
+            { name: '💻 ОС', value: meta.os || 'N/A', inline: true },
+            { name: '📐 Экран', value: meta.screenSize || 'N/A', inline: true },
+        ],
+        timestamp: report.receivedAt,
+        footer: { text: 'Errora Bug Reporter' },
+    };
+
+    // Add console logs field if present
+    if (report.consoleLogs && report.consoleLogs.length > 0) {
+        const logsText = report.consoleLogs
+            .slice(-10)
+            .map((l) => `[${(l.level || 'log').toUpperCase()}] ${(l.message || String(l)).slice(0, 100)}`)
+            .join('\n');
+        embed.fields.push({
+            name: `📋 Консоль (последние ${Math.min(report.consoleLogs.length, 10)})`,
+            value: '```\n' + logsText.slice(0, 1000) + '\n```',
+            inline: false,
+        });
+    }
+
+    // Add screenshot as embed image
+    if (report.screenshotUrl) {
+        embed.image = { url: report.screenshotUrl };
+    }
+
+    const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bot ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ embeds: [embed] }),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Discord send failed (${resp.status}): ${errText}`);
+    }
 }
 
 // ────────────────────────────────────────────
@@ -422,7 +484,26 @@ async function sendToNotion(report, client, token) {
         Status: {
             select: { name: 'New' },
         },
+        Attachments: {
+            files: report.screenshotUrl ? [
+                {
+                    name: 'Screenshot',
+                    external: { url: report.screenshotUrl }
+                }
+            ] : []
+        }
     };
+
+    // Format console logs
+    const logsText = report.consoleLogs && report.consoleLogs.length > 0
+        ? report.consoleLogs.map(l => `[${l.level || 'log'}] ${l.message || l}`).join('\n')
+        : '';
+
+    if (logsText) {
+        properties['Console Logs'] = {
+            rich_text: [{ text: { content: logsText.slice(0, 2000) } }]
+        };
+    }
 
     const children = [];
 
@@ -450,6 +531,32 @@ async function sendToNotion(report, client, token) {
             ],
         },
     });
+
+    // Add console logs as code block
+    if (logsText) {
+        children.push({
+            object: 'block',
+            type: 'heading_3',
+            heading_3: {
+                rich_text: [{ text: { content: '📋 Console Logs' } }]
+            }
+        });
+        // Split into chunks of 2000 chars (Notion block limit)
+        const chunks = [];
+        for (let i = 0; i < logsText.length; i += 2000) {
+            chunks.push(logsText.slice(i, i + 2000));
+        }
+        for (const chunk of chunks) {
+            children.push({
+                object: 'block',
+                type: 'code',
+                code: {
+                    rich_text: [{ text: { content: chunk } }],
+                    language: 'plain text'
+                }
+            });
+        }
+    }
 
     const resp = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST',
@@ -590,6 +697,8 @@ async function handleNotionCallback(request, env, url) {
                     Browser: { rich_text: {} },
                     OS: { rich_text: {} },
                     Screen: { rich_text: {} },
+                    'Console Logs': { rich_text: {} },
+                    Attachments: { files: {} }
                 },
             }),
         });

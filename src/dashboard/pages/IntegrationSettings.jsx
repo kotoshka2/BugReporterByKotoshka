@@ -260,6 +260,128 @@ function NotionSettings({ client, onUpdate }) {
     );
 }
 
+// ── Discord Settings ──
+function DiscordSettings({ client, onUpdate }) {
+    const [botToken, setBotToken] = useState(client?.discord_bot_token || '');
+    const [channelId, setChannelId] = useState(client?.discord_channel_id || '');
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState('');
+
+    const isConnected = !!client?.discord_bot_token && !!client?.discord_channel_id;
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setMessage('');
+
+        const updateData = {
+            discord_bot_token: botToken || null,
+            discord_channel_id: channelId || null,
+            updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+            .from('clients')
+            .update(updateData)
+            .eq('id', client.id);
+
+        if (error) {
+            setMessage('Ошибка сохранения: ' + error.message);
+        } else {
+            setMessage('Настройки сохранены! ✅');
+            onUpdate();
+        }
+        setSaving(false);
+    };
+
+    const handleDisconnect = async () => {
+        setSaving(true);
+        setMessage('');
+
+        const { error } = await supabase
+            .from('clients')
+            .update({
+                discord_bot_token: null,
+                discord_channel_id: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', client.id);
+
+        if (error) {
+            setMessage('Ошибка: ' + error.message);
+        } else {
+            setBotToken('');
+            setChannelId('');
+            setMessage('Discord отключён ✅');
+            onUpdate();
+        }
+        setSaving(false);
+    };
+
+    return (
+        <form onSubmit={handleSave}>
+            <div className="card">
+                <h2 className="card__title">🎮 Discord</h2>
+                <p className="card__desc">Получайте баг-репорты прямо в канал Discord.</p>
+
+                {isConnected && (
+                    <div style={{ marginBottom: '16px' }}>
+                        <span className="badge badge--green">Подключено</span>
+                    </div>
+                )}
+
+                <div className="bot-instructions">
+                    <p>1. Перейдите в <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a></p>
+                    <p>2. Создайте приложение → Bot → скопируйте <strong>Bot Token</strong></p>
+                    <p>3. Включите <code>MESSAGE CONTENT INTENT</code> в настройках бота</p>
+                    <p>4. Добавьте бота на сервер (OAuth2 → scope: <code>bot</code>, permissions: <code>Send Messages</code>, <code>Embed Links</code>)</p>
+                    <p>5. Скопируйте <strong>Channel ID</strong> нужного канала (ПКМ → «Копировать ID канала», нужен включённый режим разработчика)</p>
+                </div>
+
+                <div className="form-row">
+                    <div className="form-group">
+                        <label htmlFor="discord-token">Bot Token</label>
+                        <input
+                            id="discord-token"
+                            type="text"
+                            value={botToken}
+                            onChange={(e) => setBotToken(e.target.value)}
+                            placeholder="MTIzNDU2Nzg5MDEyMzQ1Njc4OQ..."
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="discord-channel">Channel ID</label>
+                        <input
+                            id="discord-channel"
+                            type="text"
+                            value={channelId}
+                            onChange={(e) => setChannelId(e.target.value)}
+                            placeholder="1234567890123456789"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {message && (
+                <div className={`alert ${message.includes('Ошибка') ? 'alert--error' : 'alert--success'}`}>
+                    {message}
+                </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="submit" className="btn btn--primary" disabled={saving}>
+                    {saving ? 'Сохранение…' : 'Сохранить'}
+                </button>
+                {isConnected && (
+                    <button type="button" className="btn btn--danger btn--sm" onClick={handleDisconnect} disabled={saving}>
+                        🔴 Отключить
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}
+
 // ── Coming Soon Placeholder ──
 function ComingSoonPlaceholder({ name, icon }) {
     return (
@@ -305,6 +427,8 @@ export default function IntegrationSettings({ client, onUpdate }) {
                 return <TelegramSettings client={client} onUpdate={onUpdate} />;
             case 'notion':
                 return <NotionSettings client={client} onUpdate={onUpdate} />;
+            case 'discord':
+                return <DiscordSettings client={client} onUpdate={onUpdate} />;
             default:
                 return <ComingSoonPlaceholder name={meta.name} icon={meta.icon} />;
         }
