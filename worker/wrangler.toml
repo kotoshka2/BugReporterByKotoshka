@@ -5,7 +5,7 @@ compatibility_date = "2024-01-01"
 [vars]
 ALLOWED_ORIGINS = "*"
 NOTION_REDIRECT_URI = "https://errora-api.kotoshkadev.workers.dev/api/notion/callback"
-DASHBOARD_URL = "https://today-is-friday.tech/errora"
+DASHBOARD_URL = "https://errora.net"
 
 # ── Secrets (set via `wrangler secret put <NAME>`) ──
 # Supabase + Notion OAuth credentials.

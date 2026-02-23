@@ -74,7 +74,7 @@ export default function SettingsPage({ client, onUpdate }) {
     position: '${snippetPosition}'
   };
 </script>
-<script src="https://today-is-friday.tech/errora/errora-widget.iife.js" defer></script>`;
+<script src="https://errora.net/errora-widget.iife.js" defer></script>`;
         navigator.clipboard.writeText(snippet);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -146,7 +146,7 @@ export default function SettingsPage({ client, onUpdate }) {
     position: '${snippetPosition}'
   };
 </script>
-<script src="https://today-is-friday.tech/errora/errora-widget.iife.js" defer></script>`}</code>
+<script src="https://errora.net/errora-widget.iife.js" defer></script>`}</code>
                     <button onClick={copySnippet} className="btn btn--sm btn--outline" style={{ marginTop: '0', flexShrink: 0 }}>
                         {copied ? t('settings.btn_copied') : t('settings.btn_copy')}
                     </button>
