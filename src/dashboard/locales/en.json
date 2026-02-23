@@ -145,6 +145,8 @@
         "notion_btn_connect": "🔗 Connect Notion",
         "notion_btn_disconnect": "🔴 Disconnect Notion",
         "notion_btn_open": "🔗 Open database in Notion",
+        "notion_done_status": "Done Status",
+        "notion_done_status_desc": "Exact text for the \"Done\" status property to trigger email notifications.",
         "discord_title": "Discord",
         "discord_desc": "Receive bug reports directly to a Discord channel.",
         "discord_disconnected": "Discord disconnected ✅",

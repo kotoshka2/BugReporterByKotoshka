@@ -239,10 +239,11 @@
   flex-shrink: 0;
 }
 
-/* Textarea */
-.errora-textarea {
+/* Textarea & Inputs */
+.errora-textarea,
+.errora-input,
+.errora-select {
   width: 100%;
-  min-height: 90px;
   padding: 12px;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
@@ -250,18 +251,46 @@
   font-size: 14px;
   color: #1e293b;
   background: #f8fafc;
-  resize: vertical;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.errora-textarea:focus {
+.errora-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.errora-textarea:focus,
+.errora-input:focus,
+.errora-select:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-.errora-textarea::placeholder {
+.errora-textarea::placeholder,
+.errora-input::placeholder {
   color: #94a3b8;
+}
+
+.errora-form-row {
+  margin-top: 12px;
+}
+
+.errora-severity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.errora-severity-row .errora-select {
+  flex: 1;
+  padding: 8px 12px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
 }
 
 /* Meta info */

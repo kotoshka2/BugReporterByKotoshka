@@ -141,6 +141,8 @@ function NotionSettings({ client, onUpdate }) {
     const { t } = useTranslation();
     const [disconnecting, setDisconnecting] = useState(false);
     const [message, setMessage] = useState('');
+    const [doneStatus, setDoneStatus] = useState(client?.notion_done_status || 'Done');
+    const [savingStatus, setSavingStatus] = useState(false);
     const navigate = useNavigate();
     const isConnected = !!(client?.notion_access_token || client?.notion_key);
 
@@ -199,6 +201,23 @@ function NotionSettings({ client, onUpdate }) {
         setDisconnecting(false);
     };
 
+    const handleSaveDoneStatus = async () => {
+        setSavingStatus(true);
+        setMessage('');
+        const { error } = await supabase
+            .from('clients')
+            .update({ notion_done_status: doneStatus || 'Done', updated_at: new Date().toISOString() })
+            .eq('id', client.id);
+
+        if (error) {
+            setMessage(t('integrations.msg_save_error') + error.message);
+        } else {
+            setMessage(t('integrations.msg_save_success'));
+            onUpdate();
+        }
+        setSavingStatus(false);
+    };
+
     return (
         <div>
             <div className="card">
@@ -227,7 +246,31 @@ function NotionSettings({ client, onUpdate }) {
                             </a>
                         )}
 
-                        <div style={{ marginTop: '16px' }}>
+                        <div className="form-group" style={{ marginTop: '16px' }}>
+                            <label htmlFor="notion-done-status">{t('integrations.notion_done_status', 'Done Status')}</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    id="notion-done-status"
+                                    type="text"
+                                    value={doneStatus}
+                                    onChange={(e) => setDoneStatus(e.target.value)}
+                                    placeholder="Done"
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    className="btn btn--primary btn--sm"
+                                    onClick={handleSaveDoneStatus}
+                                    disabled={savingStatus}
+                                >
+                                    {savingStatus ? t('integrations.btn_saving') : t('integrations.btn_save')}
+                                </button>
+                            </div>
+                            <small style={{ color: '#64748b', display: 'block', marginTop: '4px' }}>
+                                {t('integrations.notion_done_status_desc', 'Exact text for the "Done" status property to trigger email notifications.')}
+                            </small>
+                        </div>
+
+                        <div style={{ marginTop: '24px' }}>
                             <button
                                 onClick={handleDisconnect}
                                 className="btn btn--danger btn--sm"

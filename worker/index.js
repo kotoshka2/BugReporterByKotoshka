@@ -36,7 +36,9 @@ const translations = {
         status_new: 'New',
         attachments: 'Attachments',
         screenshot: 'Screenshot',
-        console: 'Console Logs'
+        console: 'Console Logs',
+        reporter_email: '📧 Reporter Email',
+        severity: '🔥 Severity'
     },
     ru: {
         new_bug_report: '🐞 Новый баг-репорт',
@@ -53,8 +55,17 @@ const translations = {
         status_new: 'Новый',
         attachments: 'Вложения',
         screenshot: 'Скриншот',
-        console: '📋 Консоль'
+        console: '📋 Консоль',
+        reporter_email: '📧 Email автора',
+        severity: '🔥 Срочность'
     }
+};
+
+const SEVERITY_EMOJIS = {
+    low: '🟢',
+    medium: '🟡',
+    high: '🟠',
+    critical: '🔴'
 };
 
 function t(key, lang = 'en', params = {}) {
@@ -124,6 +135,9 @@ export default {
 
         return jsonResponse({ error: 'Not Found' }, 404);
     },
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(processNotionPolling(env));
+    },
 };
 
 // ────────────────────────────────────────────
@@ -133,7 +147,7 @@ export default {
 async function handleReport(request, env) {
     try {
         const body = await request.json();
-        const { comment, screenshot, metadata, apiKey, consoleLogs } = body;
+        const { comment, screenshot, metadata, apiKey, consoleLogs, reporterEmail, severity } = body;
 
         // ── Validate API Key ──
         if (!apiKey) {
@@ -180,6 +194,8 @@ async function handleReport(request, env) {
             metadata: metadata || {},
             consoleLogs: Array.isArray(consoleLogs) ? consoleLogs : [],
             receivedAt: new Date().toISOString(),
+            reporterEmail: reporterEmail ? reporterEmail.trim() : null,
+            severity: severity || 'medium',
         };
 
         // ── Send to client's integrations (in parallel) ──
@@ -203,11 +219,16 @@ async function handleReport(request, env) {
         }
 
         const keys = Object.keys(integrationTasks);
-        const results = await Promise.allSettled(Object.values(integrationTasks));
+        const results = await Promise.allSettled(keys.map(k => integrationTasks[k]));
 
         const sentStatus = {};
+        const externalIds = {};
         keys.forEach((key, i) => {
-            sentStatus[key] = results[i]?.status === 'fulfilled';
+            const result = results[i];
+            sentStatus[key] = result.status === 'fulfilled';
+            if (result.status === 'fulfilled' && result.value) {
+                externalIds[key] = result.value;
+            }
         });
 
         // Check for errors
@@ -220,7 +241,7 @@ async function handleReport(request, env) {
         }
 
         // ── Log the report ──
-        await logReport(client.id, report, screenshotUrl, sentStatus.telegram || false, sentStatus.notion || false, sentStatus.discord || false, sentStatus.slack || false, env);
+        await logReport(client.id, report, screenshotUrl, sentStatus.telegram || false, sentStatus.notion || false, sentStatus.discord || false, sentStatus.slack || false, externalIds.notion || null, env);
 
         return jsonResponse(
             { success: true, message: 'Report received', errors },
@@ -298,7 +319,7 @@ async function getClientByApiKey(apiKey, env) {
 // Report Logging (Supabase REST API)
 // ────────────────────────────────────────────
 
-async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, discordSent, slackSent, env) {
+async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, discordSent, slackSent, notionPageId, env) {
     const meta = report.metadata || {};
 
     const url = `${env.SUPABASE_URL}/rest/v1/reports`;
@@ -325,6 +346,10 @@ async function logReport(clientId, report, screenshotUrl, tgSent, notionSent, di
                 notion_sent: notionSent,
                 discord_sent: discordSent,
                 slack_sent: slackSent,
+                reporter_email: report.reporterEmail,
+                notion_page_id: notionPageId,
+                severity: report.severity,
+                status: 'open',
             }),
         });
     } catch (err) {
@@ -391,10 +416,15 @@ async function sendToDiscord(report, client, lang = 'en') {
             { name: t('browser', lang), value: meta.browser || 'N/A', inline: true },
             { name: t('os', lang), value: meta.os || 'N/A', inline: true },
             { name: t('screen', lang), value: meta.screenSize || 'N/A', inline: true },
+            { name: t('severity', lang), value: `${SEVERITY_EMOJIS[report.severity]} ${report.severity.toUpperCase()}`, inline: true },
         ],
         timestamp: report.receivedAt,
         footer: { text: t('footer_text', lang) },
     };
+
+    if (report.reporterEmail) {
+        embed.fields.push({ name: t('reporter_email', lang), value: report.reporterEmail, inline: false });
+    }
 
     // Add console logs field if present
     if (report.consoleLogs && report.consoleLogs.length > 0) {
@@ -448,7 +478,14 @@ async function sendToTelegram(report, client, env, lang = 'en') {
         `*${t('os', lang)}:* ${escapeMarkdown(meta.os || 'N/A')}`,
         `*${t('screen', lang)}:* ${escapeMarkdown(meta.screenSize || 'N/A')}`,
         `*${t('time', lang)}:* ${report.receivedAt}`,
-    ].join('\n');
+        `*${t('severity', lang)}:* ${SEVERITY_EMOJIS[report.severity]} ${report.severity.toUpperCase()}`
+    ];
+
+    if (report.reporterEmail) {
+        caption.push(`*${t('reporter_email', lang)}:* ${escapeMarkdown(report.reporterEmail)}`);
+    }
+
+    let captionText = caption.join('\n');
 
     // Append console logs section if present
     if (report.consoleLogs && report.consoleLogs.length > 0) {
@@ -460,7 +497,7 @@ async function sendToTelegram(report, client, env, lang = 'en') {
         const sectionTitle = t('console_logs', lang, { COUNT: count });
         const section = `\n\n*${sectionTitle}:*\n${logsSection}`;
         // TG caption max is 1024 for photos, 4096 for messages
-        caption += section;
+        captionText += section;
     }
 
     if (report.screenshotUrl) {
@@ -471,7 +508,7 @@ async function sendToTelegram(report, client, env, lang = 'en') {
             body: JSON.stringify({
                 chat_id: client.tg_chat_id,
                 photo: report.screenshotUrl,
-                caption: caption.slice(0, 1024),
+                caption: captionText.slice(0, 1024),
                 parse_mode: 'Markdown',
             }),
         });
@@ -487,7 +524,7 @@ async function sendToTelegram(report, client, env, lang = 'en') {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: client.tg_chat_id,
-                text: caption,
+                text: captionText,
                 parse_mode: 'Markdown',
             }),
         });
@@ -568,6 +605,16 @@ async function sendToNotion(report, client, token, lang = 'en') {
         }
     };
 
+    // Severity is usually mapped to a Select property in Notion if it exists.
+    // We add a text representation in the page body as well to ensure it's visible.
+
+    // Email property
+    if (report.reporterEmail) {
+        properties['Reporter Email'] = {
+            email: report.reporterEmail
+        };
+    }
+
     // Format console logs
     const logsText = report.consoleLogs && report.consoleLogs.length > 0
         ? report.consoleLogs.map(l => `[${l.level || 'log'}] ${l.message || l}`).join('\n')
@@ -593,6 +640,18 @@ async function sendToNotion(report, client, token, lang = 'en') {
             },
         });
     }
+
+    children.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+            rich_text: [
+                {
+                    text: { content: `${t('severity', lang)}: ${SEVERITY_EMOJIS[report.severity]} ${report.severity.toUpperCase()}` },
+                },
+            ],
+        },
+    });
 
     children.push({
         object: 'block',
@@ -650,6 +709,9 @@ async function sendToNotion(report, client, token, lang = 'en') {
         const errText = await resp.text();
         throw new Error(`Notion create page failed: ${errText}`);
     }
+
+    const data = await resp.json();
+    return data.id;
 }
 
 // ────────────────────────────────────────────
@@ -676,9 +738,14 @@ async function sendToSlack(report, client, lang = 'en') {
                 { type: 'mrkdwn', text: `*${t('browser', lang)}:*\n${meta.browser || 'N/A'}` },
                 { type: 'mrkdwn', text: `*${t('os', lang)}:*\n${meta.os || 'N/A'}` },
                 { type: 'mrkdwn', text: `*${t('screen', lang)}:*\n${meta.screenSize || 'N/A'}` },
+                { type: 'mrkdwn', text: `*${t('severity', lang)}:*\n${SEVERITY_EMOJIS[report.severity]} ${report.severity.toUpperCase()}` },
             ],
         },
     ];
+
+    if (report.reporterEmail) {
+        blocks[2].fields.push({ type: 'mrkdwn', text: `*${t('reporter_email', lang)}:*\n${report.reporterEmail}` });
+    }
 
     // Add console logs if present
     if (report.consoleLogs && report.consoleLogs.length > 0) {
@@ -1120,4 +1187,139 @@ function jsonResponse(data, status = 200, request = null) {
     }
 
     return new Response(JSON.stringify(data), { status, headers });
+}
+
+// ────────────────────────────────────────────
+// CRON Polling: Check Notion statuses & Send Emails
+// ────────────────────────────────────────────
+
+async function processNotionPolling(env) {
+    if (!env.RESEND_API_KEY) {
+        console.error('RESEND_API_KEY is not configured.');
+        return;
+    }
+
+    try {
+        // 1. Fetch reports that are open, have a Notion ID, and a reporter email
+        const reportsUrl = `${env.SUPABASE_URL}/rest/v1/reports?status=eq.open&notified_at=is.null&notion_page_id=not.is.null&reporter_email=not.is.null&select=id,client_id,reporter_email,notion_page_id,comment`;
+        const reportsResp = await fetch(reportsUrl, {
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            }
+        });
+
+        if (!reportsResp.ok) throw new Error(`Fetch reports failed: ${await reportsResp.text()}`);
+        const reports = await reportsResp.json();
+
+        if (reports.length === 0) return;
+
+        // Group reports by client to batch fetch client configs
+        const clientIds = [...new Set(reports.map(r => r.client_id))];
+        const clientsUrl = `${env.SUPABASE_URL}/rest/v1/clients?id=in.(${clientIds.join(',')})&select=id,notion_access_token,notion_key,notion_done_status,language`;
+        const clientsResp = await fetch(clientsUrl, {
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            }
+        });
+
+        if (!clientsResp.ok) throw new Error(`Fetch clients failed: ${await clientsResp.text()}`);
+        const clientsData = await clientsResp.json();
+        const clientsMap = {};
+        for (const c of clientsData) clientsMap[c.id] = c;
+
+        // 3. Process each report
+        for (const report of reports) {
+            const client = clientsMap[report.client_id];
+            if (!client) continue;
+
+            const notionToken = client.notion_access_token || client.notion_key;
+            if (!notionToken) continue;
+
+            try {
+                // Fetch Notion page
+                const notionResp = await fetch(`https://api.notion.com/v1/pages/${report.notion_page_id}`, {
+                    headers: {
+                        Authorization: `Bearer ${notionToken}`,
+                        'Notion-Version': '2022-06-28',
+                    }
+                });
+
+                if (!notionResp.ok) {
+                    if (notionResp.status === 404) {
+                        console.warn(`Notion page ${report.notion_page_id} not found.`);
+                    }
+                    continue;
+                }
+
+                const page = await notionResp.json();
+                const doneStatus = client.notion_done_status || 'Done';
+
+                // Find status property
+                let isDone = false;
+                if (page.properties) {
+                    for (const prop of Object.values(page.properties)) {
+                        if (prop.type === 'status' && prop.status?.name === doneStatus) {
+                            isDone = true;
+                            break;
+                        }
+                        if (prop.type === 'select' && prop.select?.name === doneStatus) {
+                            isDone = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isDone) {
+                    // Send Email via Resend
+                    const lang = client.language || 'en';
+                    const subject = lang === 'ru'
+                        ? 'Отличные новости! Ваш баг-репорт решён 🎉'
+                        : 'Good news! Your bug report has been resolved 🎉';
+
+                    const bodyHtml = lang === 'ru'
+                        ? `<p>Здравствуйте!</p><p>Хотим сообщить, что баг, о котором вы сообщили:</p><blockquote>"${report.comment}"</blockquote><p>был успешно исправлен!</p><p>Спасибо, что помогаете нам становиться лучше!</p>`
+                        : `<p>Hello!</p><p>We wanted to let you know that the bug you reported:</p><blockquote>"${report.comment}"</blockquote><p>has been successfully resolved!</p><p>Thank you for helping us improve!</p>`;
+
+                    const resendResp = await fetch('https://api.resend.com/emails', {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${env.RESEND_API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            from: env.RESEND_FROM_EMAIL || 'Errora Bug Tracker <noreply@errora.io>',
+                            to: report.reporter_email,
+                            subject: subject,
+                            html: bodyHtml
+                        })
+                    });
+
+                    if (!resendResp.ok) {
+                        console.error('Failed to send email:', await resendResp.text());
+                        continue;
+                    }
+
+                    // Update report status in DB
+                    await fetch(`${env.SUPABASE_URL}/rest/v1/reports?id=eq.${report.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            apikey: env.SUPABASE_KEY,
+                            Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            status: 'closed',
+                            notified_at: new Date().toISOString()
+                        })
+                    });
+                }
+            } catch (err) {
+                console.error(`Error processing report ${report.id}:`, err);
+            }
+        }
+    } catch (err) {
+        console.error('Polling error:', err);
+    }
 }

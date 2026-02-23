@@ -140,6 +140,12 @@ const translations = {
     en: {
         placeholder_comment: "Describe the issue...",
         placeholder_screenshot: "Click to take a screenshot",
+        placeholder_email: "Email (optional, to get updates)",
+        label_severity: "Severity",
+        severity_low: "Low",
+        severity_medium: "Medium",
+        severity_high: "High",
+        severity_critical: "Critical",
         btn_cancel: "Cancel",
         btn_submit: "Send",
         btn_sending: "Sending...",
@@ -158,6 +164,12 @@ const translations = {
     ru: {
         placeholder_comment: "Опишите проблему…",
         placeholder_screenshot: "Нажмите, чтобы сделать скриншот",
+        placeholder_email: "Email (необязательно, для уведомлений)",
+        label_severity: "Срочность",
+        severity_low: "Низкая",
+        severity_medium: "Средняя",
+        severity_high: "Высокая",
+        severity_critical: "Критичная",
         btn_cancel: "Отмена",
         btn_submit: "Отправить",
         btn_sending: "Отправка…",
@@ -303,6 +315,18 @@ class ErroraWidget {
           </div>
         </div>
         <textarea class="errora-textarea" id="errora-comment" placeholder="${t('placeholder_comment')}" rows="3"></textarea>
+        <div class="errora-form-row">
+          <input type="email" class="errora-input" id="errora-email" placeholder="${t('placeholder_email')}" />
+        </div>
+        <div class="errora-form-row errora-severity-row">
+          <span class="errora-meta__label">${t('label_severity')}:</span>
+          <select class="errora-select" id="errora-severity">
+            <option value="low">${t('severity_low')}</option>
+            <option value="medium" selected>${t('severity_medium')}</option>
+            <option value="high">${t('severity_high')}</option>
+            <option value="critical">${t('severity_critical')}</option>
+          </select>
+        </div>
         <div class="errora-meta">
           <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${metadata.browser}</span></div>
           <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${metadata.os}</span></div>
@@ -464,12 +488,17 @@ class ErroraWidget {
 
         try {
             const metadata = collectMetadata();
+            const reporterEmail = this.modal.querySelector('#errora-email')?.value.trim() || null;
+            const severity = this.modal.querySelector('#errora-severity')?.value || 'medium';
+
             await submitReport(API_URL, {
                 comment,
                 screenshot: this.screenshotDataUrl || null,
                 metadata,
                 consoleLogs: getLogs(),
                 apiKey: this.config.apiKey,
+                reporterEmail,
+                severity
             });
 
             this.close();
@@ -501,8 +530,15 @@ class ErroraWidget {
         const textarea = this.modal.querySelector('#errora-comment');
         if (textarea) textarea.value = '';
 
+        const emailInput = this.modal.querySelector('#errora-email');
+        if (emailInput) emailInput.value = '';
+
+        const severitySelect = this.modal.querySelector('#errora-severity');
+        if (severitySelect) severitySelect.value = 'medium';
+
         this.screenshotDataUrl = null;
 
+        const area = this.modal.querySelector('#errora-screenshot-area');
         if (area) {
             area.innerHTML = `
         <div class="errora-screenshot-area__placeholder">

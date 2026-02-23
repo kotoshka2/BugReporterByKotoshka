@@ -65,30 +65,59 @@ node scripts/admin.js add "Компания X" --notion-key=secret_XXX --notion-
 node scripts/admin.js list
 ```
 
-## Структура проекта
+## 🛠 Технологический стек
 
-```
+### Основные компоненты
+- **Виджет (Widget)**: Vanilla JavaScript, Web Components (Shadow DOM), `html2canvas` и нативный `getDisplayMedia` API (скриншоты).
+- **Панель управления (Dashboard)**: React 19, React Router, Vite, React-i18next (мультиязычность), Custom CSS (Glassmorphism & шрифт Outfit).
+- **Бэкенд (API Gateway)**: Cloudflare Workers (Serverless) для маршрутизации, валидации и интеграций.
+- **База данных и Хранилище**: Supabase (PostgreSQL) для хранения настроек клиентов и репортов, Supabase Storage для загрузки скриншотов.
+- **Интеграции**: Telegram Bot API, Slack API (OAuth), Discord API, Notion API.
+
+## 🏗 Детали реализации
+
+### 1. Встраиваемый виджет
+- **Сборка**: Виджет собирается с помощью Vite в единый IIFE-файл (`errora-widget.iife.js`), что позволяет встраивать его на любой клиентский сайт минимальным фрагментом `<script>`.
+- **Изоляция стилей**: Интерфейс приложения инкапсулирован в **Shadow DOM**, что на 100% предотвращает конфликты стилей между виджетом и основным сайтом.
+- **Оптимизация скриншотов**: Использует гибридную стратегию захвата экрана. В приоритетном режиме задействуется нативное API `getDisplayMedia` для создания высокоточных скриншотов, а в случае отсутствия поддержки (например, на мобильных устройствах или из-за отказа в разрешениях) срабатывает фоллбек на рендеринг DOM с помощью `html2canvas`.
+
+### 2. Бэкенд и API (Cloudflare Workers)
+- **Serverless Архитектура**: Вычисления расположены "на краях" (Edge Computing), обеспечивая мгновенный отклик и минимальные задержки по всему миру.
+- **API Gateway**: Воркер обрабатывает входящие репорты, валидирует нагрузку, загружает изображения в Supabase Storage и маршрутизирует баг-репорты в подключенные трекеры (Telegram, Slack, Discord, Notion).
+- **Управление доступом**: Безопасность обеспечивается "Magic Link" подходом и хэшированными секретами, хранимыми в Postgres, а также ключами API на основе тенантной модели.
+- **OAuth-флоу**: Безупречно обрабатывает OAuth 2.0 потоки аутентификации для прозрачной интеграции сторонних сервисов (Notion, Slack).
+
+### 3. Дашборд (React SPA)
+- **Современный UI/UX**: Разработан с использованием премиального тренда Glassmorphism. Включает динамические анимированные градиентные фоны (background shapes), плавные микро-анимации и кастомную типографику 'Outfit'.
+- **SPA Управление**: Админ-панель представляет собой реактивное одностраничное приложение с удобной маршрутизацией через `react-router-dom`.
+- **Конфигуратор виджетов**: Помимо просмотра логов, дашборд предоставляет UI для настройки визуальной составляющей виджета (позиционирование, локализация - i18next), позволяя скопировать сгенерированный JS-сниппет.
+
+## 🗺 Структура проекта
+
+```text
 Errora/
-├── src/widget/          # Frontend — виджет (Shadow DOM)
-├── worker/              # Backend — Cloudflare Worker (API Gateway)
-├── supabase/            # SQL-миграция (clients, reports)
-├── scripts/             # Admin CLI (управление клиентами)
-├── demo.html            # Демо-страница
-├── vite.config.js       # Сборка виджета (IIFE)
+├── src/dashboard/       # Frontend — дашборд панели управления (React)
+├── src/widget/          # Frontend — встраиваемый виджет (Vanilla JS)
+├── worker/              # Backend — Cloudflare Worker (API, OAuth)
+├── supabase/            # База данных — SQL-миграции (PostgreSQL)
+├── scripts/             # Admin CLI (управление клиентами из консоли)
+├── demo.html            # Демо-страница виджета
+├── dashboard.html       # Entrypoint дашборда
 └── package.json
 ```
 
-## Архитектура
+## ⚙️ Техническая схема взаимодействия
 
-```
-Сайт клиента           Cloudflare Worker          Supabase
+```text
+Сайт клиента           Cloudflare Worker          Supabase Database
 ┌──────────┐           ┌───────────────┐          ┌──────────┐
 │ Widget   │──POST────▶│ /api/report   │──lookup─▶│ clients  │
 │ (apiKey) │           │               │          │ table    │
 └──────────┘           │  ┌─validate   │          └──────────┘
                        │  ├─upload img─│─────────▶│ Storage  │
-                       │  ├─send TG    │          └──────────┘
+                       │  ├─send TG/DS │          └──────────┘
                        │  ├─send Notion│
+                       │  ├─send Slack │
                        │  └─log report │─────────▶│ reports  │
                        └───────────────┘          └──────────┘
 ```

@@ -145,6 +145,8 @@
         "notion_btn_connect": "🔗 Подключить Notion",
         "notion_btn_disconnect": "🔴 Отключить Notion",
         "notion_btn_open": "🔗 Открыть базу данных в Notion",
+        "notion_done_status": "Статус «Готово»",
+        "notion_done_status_desc": "Точный текст статуса в Notion, при котором автору будет отправляться email-уведомление (например, «Done» или «Готово»).",
         "discord_title": "Discord",
         "discord_desc": "Получайте баг-репорты прямо в канал Discord.",
         "discord_disconnected": "Discord отключён ✅",
