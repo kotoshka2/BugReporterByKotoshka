@@ -140,31 +140,25 @@ export default function ReportsPage({ client }) {
             </h1>
 
             {reports.length > 0 && (
-                <div className="reports-controls" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <select
-                            value={filterSeverity}
-                            onChange={(e) => setFilterSeverity(e.target.value)}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '150px' }}
-                        >
-                            <option value="all">{t('reports.filter_all', 'All')}</option>
-                            <option value="critical">{t('reports.badge_critical', 'Critical')}</option>
-                            <option value="high">{t('reports.badge_high', 'High')}</option>
-                            <option value="medium">{t('reports.badge_medium', 'Medium')}</option>
-                            <option value="low">{t('reports.badge_low', 'Low')}</option>
-                        </select>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '150px' }}
-                        >
-                            <option value="date_desc">{t('reports.sort_date_desc', 'Newest first')}</option>
-                            <option value="date_asc">{t('reports.sort_date_asc', 'Oldest first')}</option>
-                            <option value="severity_desc">{t('reports.sort_severity_desc', 'Most severe first')}</option>
-                        </select>
-                    </div>
+                <div className="reports-controls">
+                    <select
+                        value={filterSeverity}
+                        onChange={(e) => setFilterSeverity(e.target.value)}
+                    >
+                        <option value="all">{t('reports.filter_all', 'All')}</option>
+                        <option value="critical">{t('reports.badge_critical', 'Critical')}</option>
+                        <option value="high">{t('reports.badge_high', 'High')}</option>
+                        <option value="medium">{t('reports.badge_medium', 'Medium')}</option>
+                        <option value="low">{t('reports.badge_low', 'Low')}</option>
+                    </select>
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                    >
+                        <option value="date_desc">{t('reports.sort_date_desc', 'Newest first')}</option>
+                        <option value="date_asc">{t('reports.sort_date_asc', 'Oldest first')}</option>
+                        <option value="severity_desc">{t('reports.sort_severity_desc', 'Most severe first')}</option>
+                    </select>
                 </div>
             )}
 
@@ -188,7 +182,7 @@ export default function ReportsPage({ client }) {
                                 </span>
                                 <div className="report-card__badges">
                                     {report.severity && (
-                                        <span className={`badge badge--severity-${report.severity}`} style={{ textTransform: 'uppercase', fontSize: '10px' }}>
+                                        <span className={`badge badge--severity-${report.severity}`}>
                                             {t(`reports.badge_${report.severity}`, report.severity)}
                                         </span>
                                     )}
@@ -214,14 +208,15 @@ export default function ReportsPage({ client }) {
                                         <div><strong>{t('reports.meta_os')}:</strong> {report.os || '—'}</div>
                                         <div><strong>{t('reports.meta_screen')}:</strong> {report.screen_size || '—'}</div>
                                         {report.reporter_email && (
-                                            <div style={{ marginTop: '12px' }}>
-                                                <strong>{t('auth.label_email', 'Author Email')}:</strong> {report.reporter_email}
+                                            <div className="report-card__email-row">
+                                                <span>
+                                                    <strong>{t('auth.label_email', 'Email')}:</strong> {report.reporter_email}
+                                                </span>
                                                 <button
-                                                    className="btn btn--sm btn--primary"
-                                                    style={{ marginLeft: '12px', display: 'inline-block' }}
+                                                    className="btn--reply"
                                                     onClick={(e) => handleOpenReply(report, e)}
                                                 >
-                                                    {t('reports.btn_reply', 'Reply')}
+                                                    ✉️ {t('reports.btn_reply', 'Reply')}
                                                 </button>
                                             </div>
                                         )}
@@ -234,11 +229,11 @@ export default function ReportsPage({ client }) {
             )}
 
             {isReplyModalOpen && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={handleCloseReply}>
-                    <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '16px' }}>{t('reports.reply_modal_title', 'Reply to Reporter')}</h2>
+                <div className="reply-overlay" onClick={handleCloseReply}>
+                    <div className="reply-modal" onClick={e => e.stopPropagation()}>
+                        <h2 className="reply-modal__title">{t('reports.reply_modal_title', 'Reply to Reporter')}</h2>
                         <div className="form-group">
-                            <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '8px' }}>
+                            <label className="reply-modal__email">
                                 {t('auth.label_email', 'Email')}: <strong>{replyingReport?.reporter_email}</strong>
                             </label>
                             <textarea
@@ -246,17 +241,16 @@ export default function ReportsPage({ client }) {
                                 onChange={(e) => setReplyMessage(e.target.value)}
                                 placeholder={t('reports.reply_placeholder', 'Type your message here...')}
                                 rows={5}
-                                style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0', resize: 'vertical' }}
                             />
                         </div>
 
                         {replyResult && (
-                            <div className={`alert ${replyResult.type === 'error' ? 'alert--error' : 'alert--success'}`} style={{ marginTop: '16px', marginBottom: 0 }}>
+                            <div className={`alert ${replyResult.type === 'error' ? 'alert--error' : 'alert--success'}`}>
                                 {replyResult.msg}
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                        <div className="reply-modal__actions">
                             <button className="btn btn--ghost" onClick={handleCloseReply} disabled={isReplying}>
                                 {t('reports.btn_cancel', 'Cancel')}
                             </button>
