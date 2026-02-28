@@ -547,6 +547,194 @@ function SlackSettings({ client, onUpdate }) {
     );
 }
 
+// ── Jira Settings (OAuth) ──
+function JiraSettings({ client, onUpdate }) {
+    const { t } = useTranslation();
+    const [disconnecting, setDisconnecting] = useState(false);
+    const [message, setMessage] = useState('');
+    const [jiraConfig, setJiraConfig] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [projectKey, setProjectKey] = useState('');
+    const [savingKey, setSavingKey] = useState(false);
+    const navigate = useNavigate();
+
+    // Fetch Jira config from separate table
+    const fetchJiraConfig = async () => {
+        const { data, error } = await supabase
+            .from('jira_integrations')
+            .select('*')
+            .eq('client_id', client.id)
+            .maybeSingle();
+
+        if (data) {
+            setJiraConfig(data);
+            setProjectKey(data.project_key || '');
+        } else {
+            setJiraConfig(null);
+        }
+        setLoading(false);
+    };
+
+    React.useEffect(() => {
+        if (client) fetchJiraConfig();
+    }, [client]);
+
+    // Check for OAuth callback status in URL
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status');
+        const reason = params.get('reason');
+
+        if (status === 'success') {
+            setMessage(t('integrations.jira_connected'));
+            fetchJiraConfig();
+            onUpdate();
+            navigate('/dashboard/integrations/jira', { replace: true });
+        } else if (status === 'error') {
+            const reasons = {
+                token_exchange_failed: 'Token exchange failed',
+                no_sites_found: 'No Jira sites found for this account',
+                resources_fetch_failed: 'Failed to fetch Jira resources',
+                save_failed: 'Failed to save credentials',
+                missing_params: 'Missing authorization parameters',
+                no_access_token: 'No access token received',
+                access_denied: 'Access denied by user',
+            };
+            setMessage(`Error: ${reasons[reason] || reason || 'Unknown error'}`);
+            navigate('/dashboard/integrations/jira', { replace: true });
+        }
+    }, []);
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL.replace('/api/report', '');
+
+    const handleConnect = () => {
+        const url = `${apiBaseUrl}/api/jira/auth?clientId=${encodeURIComponent(client.id)}`;
+        window.location.href = url;
+    };
+
+    const handleDisconnect = async () => {
+        setDisconnecting(true);
+        setMessage('');
+
+        try {
+            const resp = await fetch(`${apiBaseUrl}/api/jira/disconnect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: client.api_key }),
+            });
+
+            if (resp.ok) {
+                setMessage(t('integrations.jira_disconnected'));
+                setJiraConfig(null);
+                onUpdate();
+            } else {
+                setMessage(t('integrations.msg_disconnect_error'));
+            }
+        } catch (err) {
+            setMessage(t('integrations.msg_network_error') + err.message);
+        }
+        setDisconnecting(false);
+    };
+
+    const handleSaveProjectKey = async () => {
+        setSavingKey(true);
+        setMessage('');
+        const { error } = await supabase
+            .from('jira_integrations')
+            .update({ project_key: projectKey || null, updated_at: new Date().toISOString() })
+            .eq('client_id', client.id);
+
+        if (error) {
+            setMessage(t('integrations.msg_save_error') + error.message);
+        } else {
+            setMessage(t('integrations.msg_save_success'));
+            onUpdate();
+        }
+        setSavingKey(false);
+    };
+
+    if (loading) {
+        return <div className="card"><div className="loading-spinner" /></div>;
+    }
+
+    const isConnected = !!jiraConfig?.access_token;
+
+    return (
+        <div>
+            <div className="card">
+                <h2 className="card__title">🎯 {t('integrations.jira_title')}</h2>
+
+                {isConnected ? (
+                    <div className="notion-connected">
+                        <div className="notion-status">
+                            <span className="notion-status__badge">✅ {t('integrations.status_connected')}</span>
+                            {jiraConfig.workspace_name && (
+                                <span className="notion-status__workspace">
+                                    Site: <strong>{jiraConfig.workspace_name}</strong>
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="form-group" style={{ marginTop: '16px' }}>
+                            <label htmlFor="jira-project-key">{t('integrations.jira_project_key')}</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    id="jira-project-key"
+                                    type="text"
+                                    value={projectKey}
+                                    onChange={(e) => setProjectKey(e.target.value.toUpperCase())}
+                                    placeholder={t('integrations.jira_project_key_placeholder')}
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    className="btn btn--primary btn--sm"
+                                    onClick={handleSaveProjectKey}
+                                    disabled={savingKey}
+                                >
+                                    {savingKey ? t('integrations.btn_saving') : t('integrations.btn_save')}
+                                </button>
+                            </div>
+                            <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                                {t('integrations.jira_project_key_desc')}
+                            </small>
+                        </div>
+
+                        <div style={{ marginTop: '24px' }}>
+                            <button
+                                onClick={handleDisconnect}
+                                className="btn btn--danger btn--sm"
+                                disabled={disconnecting}
+                            >
+                                {disconnecting ? t('integrations.btn_disconnecting') : t('integrations.jira_btn_disconnect')}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="notion-connect">
+                        <p className="card__desc">
+                            {t('integrations.jira_desc')}
+                        </p>
+                        <div className="notion-connect__steps">
+                            <p>{t('integrations.jira_step_1')}</p>
+                            <p>{t('integrations.jira_step_2')}</p>
+                            <p>{t('integrations.jira_step_3')}</p>
+                        </div>
+                        <button onClick={handleConnect} className="btn btn--primary" style={{ marginTop: '16px' }}>
+                            {t('integrations.jira_btn_connect')}
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {message && (
+                <div className={`alert ${message.includes('error') || message.includes('Ошибка') || message.includes('Error') ? 'alert--error' : 'alert--success'}`}>
+                    {message}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Coming Soon Placeholder ──
 function ComingSoonPlaceholder({ name, icon }) {
     const { t } = useTranslation();
@@ -598,6 +786,8 @@ export default function IntegrationSettings({ client, onUpdate }) {
                 return <DiscordSettings client={client} onUpdate={onUpdate} />;
             case 'slack':
                 return <SlackSettings client={client} onUpdate={onUpdate} />;
+            case 'jira':
+                return <JiraSettings client={client} onUpdate={onUpdate} />;
             default:
                 return <ComingSoonPlaceholder name={meta.name} icon={meta.icon} />;
         }

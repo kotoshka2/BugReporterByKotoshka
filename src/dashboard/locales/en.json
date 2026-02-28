@@ -232,6 +232,18 @@
         "slack_btn_disconnect": "🔴 Disconnect Slack",
         "slack_connected": "Slack connected! ✅",
         "slack_disconnected": "Slack disconnected ✅",
-        "slack_channel": "Channel:"
+        "slack_channel": "Channel:",
+        "jira_title": "Jira",
+        "jira_desc": "Connect Jira to automatically create bug report issues in your project.",
+        "jira_step_1": "Click the button below",
+        "jira_step_2": "Authorize access to your Jira site",
+        "jira_step_3": "Enter your project key and save",
+        "jira_btn_connect": "🔗 Connect Jira",
+        "jira_btn_disconnect": "🔴 Disconnect Jira",
+        "jira_connected": "Jira connected! ✅",
+        "jira_disconnected": "Jira disconnected ✅",
+        "jira_project_key": "Project Key",
+        "jira_project_key_desc": "The key of the Jira project where bug issues will be created (e.g. BUG, FRONT).",
+        "jira_project_key_placeholder": "BUG"
     }
 }

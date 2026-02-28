@@ -232,6 +232,18 @@
         "slack_btn_disconnect": "🔴 Отключить Slack",
         "slack_connected": "Slack подключён! ✅",
         "slack_disconnected": "Slack отключён ✅",
-        "slack_channel": "Канал:"
+        "slack_channel": "Канал:",
+        "jira_title": "Jira",
+        "jira_desc": "Подключите Jira, чтобы из баг-репортов автоматически создавались задачи в вашем проекте.",
+        "jira_step_1": "1. Нажмите кнопку ниже",
+        "jira_step_2": "2. Авторизуйте доступ к вашему Jira-сайту",
+        "jira_step_3": "3. Введите ключ проекта и сохраните",
+        "jira_btn_connect": "🔗 Подключить Jira",
+        "jira_btn_disconnect": "🔴 Отключить Jira",
+        "jira_connected": "Jira подключён! ✅",
+        "jira_disconnected": "Jira отключён ✅",
+        "jira_project_key": "Ключ проекта",
+        "jira_project_key_desc": "Ключ проекта в Jira, в котором будут создаваться задачи (напр. BUG, FRONT).",
+        "jira_project_key_placeholder": "BUG"
     }
 }

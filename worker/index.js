@@ -133,6 +133,21 @@ export default {
             return handleSlackDisconnect(request, env);
         }
 
+        // ── Route: GET /api/jira/auth — Start Jira OAuth ──
+        if (url.pathname === '/api/jira/auth' && request.method === 'GET') {
+            return handleJiraAuth(request, env, url);
+        }
+
+        // ── Route: GET /api/jira/callback — Jira OAuth callback ──
+        if (url.pathname === '/api/jira/callback' && request.method === 'GET') {
+            return handleJiraCallback(request, env, url);
+        }
+
+        // ── Route: POST /api/jira/disconnect — Disconnect Jira ──
+        if (url.pathname === '/api/jira/disconnect' && request.method === 'POST') {
+            return handleJiraDisconnect(request, env);
+        }
+
         // ── Health check ──
         if (url.pathname === '/health') {
             return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
@@ -221,6 +236,19 @@ async function handleReport(request, env) {
 
         if (client.slack_webhook_url) {
             integrationTasks.slack = sendToSlack(report, client, lang);
+        }
+
+        // Jira: fetch config from separate table
+        const jiraConfigPromise = fetch(`${env.SUPABASE_URL}/rest/v1/jira_integrations?client_id=eq.${encodeURIComponent(client.id)}&select=*`, {
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            },
+        }).then(r => r.json()).then(rows => rows?.[0] || null).catch(() => null);
+
+        const jiraConfig = await jiraConfigPromise;
+        if (jiraConfig && jiraConfig.access_token && jiraConfig.cloud_id && jiraConfig.project_key) {
+            integrationTasks.jira = sendToJira(report, jiraConfig, lang);
         }
 
         const keys = Object.keys(integrationTasks);
@@ -1098,6 +1126,271 @@ async function handleSlackDisconnect(request, env) {
         return jsonResponse({ success: true, message: 'Slack disconnected' }, 200, request);
     } catch (err) {
         console.error('handleSlackDisconnect error:', err);
+        return jsonResponse({ error: 'Internal Server Error', details: err.message }, 500, request);
+    }
+}
+
+// ────────────────────────────────────────────
+// Jira Integration: Send Bug
+// ────────────────────────────────────────────
+
+async function sendToJira(report, jiraConfig, lang = 'en') {
+    const meta = report.metadata || {};
+    const severityMap = { critical: 'Highest', high: 'High', medium: 'Medium', low: 'Low' };
+
+    // Build description in Atlassian Document Format (ADF)
+    const descriptionContent = [];
+
+    // Comment
+    descriptionContent.push({
+        type: 'paragraph',
+        content: [
+            { type: 'text', text: `${t('comment', lang)} `, marks: [{ type: 'strong' }] },
+            { type: 'text', text: report.comment },
+        ],
+    });
+
+    // Metadata table
+    const metaLines = [
+        `${t('url', lang)}: ${meta.url || 'N/A'}`,
+        `${t('browser', lang)}: ${meta.browser || 'N/A'}`,
+        `${t('os', lang)}: ${meta.os || 'N/A'}`,
+        `${t('screen', lang)}: ${meta.screenSize || 'N/A'}`,
+        `${t('severity', lang)}: ${SEVERITY_EMOJIS[report.severity]} ${report.severity.toUpperCase()}`,
+        `${t('time', lang)}: ${report.receivedAt}`,
+    ];
+
+    if (report.reporterEmail) {
+        metaLines.push(`${t('reporter_email', lang)}: ${report.reporterEmail}`);
+    }
+
+    for (const line of metaLines) {
+        descriptionContent.push({
+            type: 'paragraph',
+            content: [{ type: 'text', text: line }],
+        });
+    }
+
+    // Screenshot link
+    if (report.screenshotUrl) {
+        descriptionContent.push({
+            type: 'paragraph',
+            content: [
+                { type: 'text', text: `${t('screenshot', lang)}: ` },
+                {
+                    type: 'text',
+                    text: report.screenshotUrl,
+                    marks: [{ type: 'link', attrs: { href: report.screenshotUrl } }],
+                },
+            ],
+        });
+    }
+
+    // Console logs
+    if (report.consoleLogs && report.consoleLogs.length > 0) {
+        const logsText = report.consoleLogs
+            .slice(-15)
+            .map(l => `[${(l.level || 'log').toUpperCase()}] ${(l.message || String(l)).slice(0, 200)}`)
+            .join('\n');
+
+        descriptionContent.push({
+            type: 'codeBlock',
+            attrs: { language: 'text' },
+            content: [{ type: 'text', text: logsText.slice(0, 10000) }],
+        });
+    }
+
+    const issueData = {
+        fields: {
+            project: { key: jiraConfig.project_key },
+            summary: `🐞 Bug: ${report.comment.slice(0, 200)}`,
+            description: {
+                type: 'doc',
+                version: 1,
+                content: descriptionContent,
+            },
+            issuetype: { name: 'Bug' },
+        },
+    };
+
+    // Try to map severity to Jira priority
+    if (severityMap[report.severity]) {
+        issueData.fields.priority = { name: severityMap[report.severity] };
+    }
+
+    const jiraApiUrl = `https://api.atlassian.com/ex/jira/${jiraConfig.cloud_id}/rest/api/3/issue`;
+
+    const resp = await fetch(jiraApiUrl, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${jiraConfig.access_token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+        },
+        body: JSON.stringify(issueData),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Jira create issue failed (${resp.status}): ${errText}`);
+    }
+
+    const data = await resp.json();
+    return data.key; // e.g. "BUG-42"
+}
+
+// ────────────────────────────────────────────
+// Jira OAuth: Start Authorization
+// ────────────────────────────────────────────
+
+async function handleJiraAuth(request, env, url) {
+    const clientId = url.searchParams.get('clientId');
+    if (!clientId) {
+        return jsonResponse({ error: 'clientId query parameter is required' }, 400, request);
+    }
+
+    const jiraAuthUrl = new URL('https://auth.atlassian.com/authorize');
+    jiraAuthUrl.searchParams.set('audience', 'api.atlassian.com');
+    jiraAuthUrl.searchParams.set('client_id', env.JIRA_CLIENT_ID);
+    jiraAuthUrl.searchParams.set('scope', 'read:jira-work write:jira-work read:me offline_access');
+    jiraAuthUrl.searchParams.set('redirect_uri', env.JIRA_REDIRECT_URI);
+    jiraAuthUrl.searchParams.set('state', clientId);
+    jiraAuthUrl.searchParams.set('response_type', 'code');
+    jiraAuthUrl.searchParams.set('prompt', 'consent');
+
+    return Response.redirect(jiraAuthUrl.toString(), 302);
+}
+
+// ────────────────────────────────────────────
+// Jira OAuth: Callback (exchange code → tokens)
+// ────────────────────────────────────────────
+
+async function handleJiraCallback(request, env, url) {
+    const code = url.searchParams.get('code');
+    const clientId = url.searchParams.get('state');
+    const error = url.searchParams.get('error');
+    const dashboardUrl = env.DASHBOARD_URL || 'http://localhost:5173';
+
+    if (error) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=${encodeURIComponent(error)}`, 302);
+    }
+
+    if (!code || !clientId) {
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=missing_params`, 302);
+    }
+
+    try {
+        // 1. Exchange authorization code for tokens
+        const tokenResp = await fetch('https://auth.atlassian.com/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                grant_type: 'authorization_code',
+                client_id: env.JIRA_CLIENT_ID,
+                client_secret: env.JIRA_CLIENT_SECRET,
+                code,
+                redirect_uri: env.JIRA_REDIRECT_URI,
+            }),
+        });
+
+        if (!tokenResp.ok) {
+            console.error('Jira token exchange failed:', await tokenResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=token_exchange_failed`, 302);
+        }
+
+        const tokenData = await tokenResp.json();
+        const accessToken = tokenData.access_token;
+        const refreshToken = tokenData.refresh_token || null;
+
+        if (!accessToken) {
+            console.error('Jira OAuth: no access_token returned');
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=no_access_token`, 302);
+        }
+
+        // 2. Fetch accessible Jira resources (sites)
+        const resourcesResp = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+            headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+        });
+
+        if (!resourcesResp.ok) {
+            console.error('Jira resources fetch failed:', await resourcesResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=resources_fetch_failed`, 302);
+        }
+
+        const resources = await resourcesResp.json();
+        if (!resources || resources.length === 0) {
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=no_sites_found`, 302);
+        }
+
+        // Use the first accessible site
+        const site = resources[0];
+        const cloudId = site.id;
+        const siteName = site.name || site.url || 'Jira';
+
+        // 3. Upsert into jira_integrations table
+        const upsertUrl = `${env.SUPABASE_URL}/rest/v1/jira_integrations`;
+        const upsertResp = await fetch(upsertUrl, {
+            method: 'POST',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'resolution=merge-duplicates,return=minimal',
+            },
+            body: JSON.stringify({
+                client_id: clientId,
+                access_token: accessToken,
+                refresh_token: refreshToken,
+                cloud_id: cloudId,
+                workspace_name: siteName,
+                updated_at: new Date().toISOString(),
+            }),
+        });
+
+        if (!upsertResp.ok) {
+            console.error('Supabase upsert failed:', await upsertResp.text());
+            return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=save_failed`, 302);
+        }
+
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=success`, 302);
+    } catch (err) {
+        console.error('handleJiraCallback error:', err);
+        return Response.redirect(`${dashboardUrl}/dashboard/integrations/jira?status=error&reason=${encodeURIComponent(err.message)}`, 302);
+    }
+}
+
+// ────────────────────────────────────────────
+// Jira OAuth: Disconnect
+// ────────────────────────────────────────────
+
+async function handleJiraDisconnect(request, env) {
+    try {
+        const body = await request.json();
+        const { apiKey } = body;
+
+        if (!apiKey) {
+            return jsonResponse({ error: 'apiKey is required' }, 400, request);
+        }
+
+        const client = await getClientByApiKey(apiKey, env);
+        if (!client) {
+            return jsonResponse({ error: 'Invalid API key' }, 401, request);
+        }
+
+        // Delete from jira_integrations table
+        const deleteUrl = `${env.SUPABASE_URL}/rest/v1/jira_integrations?client_id=eq.${encodeURIComponent(client.id)}`;
+        await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+                Prefer: 'return=minimal',
+            },
+        });
+
+        return jsonResponse({ success: true, message: 'Jira disconnected' }, 200, request);
+    } catch (err) {
+        console.error('handleJiraDisconnect error:', err);
         return jsonResponse({ error: 'Internal Server Error', details: err.message }, 500, request);
     }
 }
