@@ -26,7 +26,6 @@ export default function IntegrationsList({ client }) {
             name: 'Jira',
             icon: '🎯',
             description: t('integrations.desc_jira', 'Создавайте задачи в Jira из баг-репортов.'),
-            comingSoon: true,
         },
         {
             id: 'slack',
