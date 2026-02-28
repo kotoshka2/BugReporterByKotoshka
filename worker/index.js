@@ -93,6 +93,11 @@ export default {
             return handleReport(request, env);
         }
 
+        // ── Route: POST /api/reply ──
+        if (url.pathname === '/api/reply' && request.method === 'POST') {
+            return handleReply(request, env);
+        }
+
         // ── Route: GET /api/config ──
         if (url.pathname === '/api/config' && request.method === 'GET') {
             return handleConfig(request, env, url);
@@ -250,6 +255,103 @@ async function handleReport(request, env) {
         );
     } catch (err) {
         console.error('handleReport error:', err);
+        return jsonResponse(
+            { error: 'Internal Server Error', details: err.message },
+            500,
+            request
+        );
+    }
+}
+
+// ────────────────────────────────────────────
+// Route Handler: /api/reply
+// ────────────────────────────────────────────
+
+async function handleReply(request, env) {
+    try {
+        const body = await request.json();
+        const { apiKey, reportId, message } = body;
+
+        // ── Validate API Key ──
+        if (!apiKey) {
+            return jsonResponse({ error: 'API key is required' }, 401, request);
+        }
+
+        const client = await getClientByApiKey(apiKey, env);
+        if (!client) {
+            return jsonResponse({ error: 'Invalid API key' }, 401, request);
+        }
+
+        if (!client.is_active) {
+            return jsonResponse({ error: 'Account is deactivated' }, 403, request);
+        }
+
+        if (!reportId || !message) {
+            return jsonResponse({ error: 'reportId and message are required' }, 400, request);
+        }
+
+        if (!env.RESEND_API_KEY) {
+            return jsonResponse({ error: 'Email service is not configured' }, 500, request);
+        }
+
+        // 1. Fetch the report to get reporter email
+        const reportUrl = `${env.SUPABASE_URL}/rest/v1/reports?id=eq.${reportId}&client_id=eq.${client.id}&select=reporter_email,comment`;
+        const reportResp = await fetch(reportUrl, {
+            headers: {
+                apikey: env.SUPABASE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_KEY}`,
+            }
+        });
+
+        if (!reportResp.ok) throw new Error(`Fetch report failed: ${await reportResp.text()}`);
+        const reports = await reportResp.json();
+
+        if (reports.length === 0) {
+            return jsonResponse({ error: 'Report not found or does not belong to client' }, 404, request);
+        }
+
+        const report = reports[0];
+        if (!report.reporter_email) {
+            return jsonResponse({ error: 'This report does not have a reporter email' }, 400, request);
+        }
+
+        // 2. Send Email via Resend
+        const lang = client.language || 'en';
+        const subject = lang === 'ru'
+            ? 'Ответ на ваш баг-репорт'
+            : 'Reply to your bug report';
+
+        const bodyHtml = lang === 'ru'
+            ? `<p>Здравствуйте!</p><p>Мы получили ваш баг-репорт:</p><blockquote>"${report.comment}"</blockquote><p><strong>Вот ответ от разработчиков:</strong></p><p style="white-space: pre-wrap;">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p><p>Спасибо, что помогаете нам становиться лучше!</p>`
+            : `<p>Hello!</p><p>We received your bug report:</p><blockquote>"${report.comment}"</blockquote><p><strong>Here is a reply from the developers:</strong></p><p style="white-space: pre-wrap;">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p><p>Thank you for helping us improve!</p>`;
+
+        const resendResp = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: env.RESEND_FROM_EMAIL || 'Errora Bug Tracker <noreply@errora.io>',
+                to: report.reporter_email,
+                subject: subject,
+                html: bodyHtml
+            })
+        });
+
+        if (!resendResp.ok) {
+            const errText = await resendResp.text();
+            console.error('Failed to send email:', errText);
+            return jsonResponse({ error: 'Failed to send email' }, 500, request);
+        }
+
+        return jsonResponse(
+            { success: true, message: 'Reply sent successfully' },
+            200,
+            request
+        );
+    } catch (err) {
+        console.error('handleReply error:', err);
         return jsonResponse(
             { error: 'Internal Server Error', details: err.message },
             500,
@@ -546,7 +648,68 @@ function escapeMarkdown(text) {
 // Notion Integration
 // ────────────────────────────────────────────
 
+// Expected Notion DB schema — all properties that must exist.
+// If a property is missing from the user's database, it will be auto-created.
+const EXPECTED_NOTION_SCHEMA = {
+    'Reporter Email': { email: {} },
+};
+
+/**
+ * Fetches the current Notion database schema and adds any missing
+ * properties from EXPECTED_NOTION_SCHEMA via PATCH.
+ */
+async function syncNotionSchema(databaseId, token) {
+    // 1. GET current database schema
+    const getResp = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Notion-Version': '2022-06-28',
+        },
+    });
+
+    if (!getResp.ok) {
+        console.error('syncNotionSchema: failed to fetch DB schema:', await getResp.text());
+        return; // Non-critical: continue without sync
+    }
+
+    const dbData = await getResp.json();
+    const existingProps = dbData.properties || {};
+
+    // 2. Find missing properties
+    const missingProps = {};
+    for (const [name, definition] of Object.entries(EXPECTED_NOTION_SCHEMA)) {
+        if (!existingProps[name]) {
+            missingProps[name] = definition;
+        }
+    }
+
+    // 3. PATCH if there are missing properties
+    if (Object.keys(missingProps).length === 0) {
+        return; // Schema is up to date
+    }
+
+    console.log('syncNotionSchema: adding missing properties:', Object.keys(missingProps));
+
+    const patchResp = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+        method: 'PATCH',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28',
+        },
+        body: JSON.stringify({ properties: missingProps }),
+    });
+
+    if (!patchResp.ok) {
+        console.error('syncNotionSchema: failed to update DB schema:', await patchResp.text());
+    }
+}
+
 async function sendToNotion(report, client, token, lang = 'en') {
+    // Ensure the database schema is up to date before inserting
+    await syncNotionSchema(client.notion_db_id, token);
+
     const meta = report.metadata;
 
     const properties = {
@@ -1059,7 +1222,8 @@ async function handleNotionCallback(request, env, url) {
                     OS: { rich_text: {} },
                     Screen: { rich_text: {} },
                     'Console Logs': { rich_text: {} },
-                    Attachments: { files: {} }
+                    Attachments: { files: {} },
+                    'Reporter Email': { email: {} }
                 },
             }),
         });

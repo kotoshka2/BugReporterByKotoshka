@@ -193,6 +193,20 @@ function t(key) {
     return translations[currentLang]?.[key] || translations['en'][key] || key;
 }
 
+/**
+ * Escape HTML special characters to prevent XSS when using innerHTML.
+ */
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+    }[tag] || tag));
+}
+
 // ── Widget Class ────────────────────────────────────────
 
 class ErroraWidget {
@@ -328,10 +342,10 @@ class ErroraWidget {
           </select>
         </div>
         <div class="errora-meta">
-          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${metadata.browser}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${metadata.os}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${metadata.screenSize}</span></div>
-          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${metadata.url}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${escapeHTML(metadata.browser)}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${escapeHTML(metadata.os)}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${escapeHTML(metadata.screenSize)}</span></div>
+          <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${escapeHTML(metadata.url)}</span></div>
         </div>
       </div>
       <div class="errora-modal__footer">
@@ -384,10 +398,10 @@ class ErroraWidget {
         const metaEl = this.modal.querySelector('.errora-meta');
         if (metaEl) {
             metaEl.innerHTML = `
-        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${meta.browser}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${meta.os}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${meta.screenSize}</span></div>
-        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${meta.url}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_browser')}</span><span>${escapeHTML(meta.browser)}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_os')}</span><span>${escapeHTML(meta.os)}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_screen')}</span><span>${escapeHTML(meta.screenSize)}</span></div>
+        <div class="errora-meta__row"><span class="errora-meta__label">${t('label_url')}</span><span style="word-break:break-all">${escapeHTML(meta.url)}</span></div>
       `;
         }
     }
@@ -436,7 +450,7 @@ class ErroraWidget {
                </button>`
             : '';
         area.innerHTML = `
-            <img src="${dataUrl}" alt="Screenshot preview" />
+            <img src="${escapeHTML(dataUrl)}" alt="Screenshot preview" />
             ${retakeHtml}
         `;
 
