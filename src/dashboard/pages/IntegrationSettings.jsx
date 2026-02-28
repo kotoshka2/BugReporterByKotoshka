@@ -762,7 +762,6 @@ function JiraSettings({ client, onUpdate }) {
                                         value={selectedStatusId}
                                         onChange={(e) => handleSaveStatus(e.target.value)}
                                         disabled={savingStatus}
-                                        style={{ width: '100%' }}
                                     >
                                         <option value="">{t('integrations.jira_status_default')}</option>
                                         {statuses.map(s => (
