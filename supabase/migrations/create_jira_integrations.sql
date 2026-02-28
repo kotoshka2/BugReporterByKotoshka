@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS jira_integrations (
     cloud_id       text,
     workspace_name text,
     project_key    text,
+    default_status_id   text,
+    default_status_name text,
     created_at     timestamptz DEFAULT now(),
     updated_at     timestamptz DEFAULT now()
 );

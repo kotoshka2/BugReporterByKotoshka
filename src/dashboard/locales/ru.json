@@ -244,6 +244,10 @@
         "jira_disconnected": "Jira отключён ✅",
         "jira_project_key": "Ключ проекта",
         "jira_project_key_desc": "Ключ проекта в Jira, в котором будут создаваться задачи (напр. BUG, FRONT).",
-        "jira_project_key_placeholder": "BUG"
+        "jira_project_key_placeholder": "BUG",
+        "jira_status_label": "Колонка для новых багов",
+        "jira_status_default": "По умолчанию (начальный статус)",
+        "jira_status_desc": "Выберите, в какую колонку на доске будут попадать новые баг-репорты.",
+        "jira_status_none": "Сначала сохраните Project Key, чтобы загрузить доступные колонки."
     }
 }

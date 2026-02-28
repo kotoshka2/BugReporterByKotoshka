@@ -556,11 +556,17 @@ function JiraSettings({ client, onUpdate }) {
     const [loading, setLoading] = useState(true);
     const [projectKey, setProjectKey] = useState('');
     const [savingKey, setSavingKey] = useState(false);
+    const [statuses, setStatuses] = useState([]);
+    const [loadingStatuses, setLoadingStatuses] = useState(false);
+    const [selectedStatusId, setSelectedStatusId] = useState('');
+    const [savingStatus, setSavingStatus] = useState(false);
     const navigate = useNavigate();
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL.replace('/api/report', '');
 
     // Fetch Jira config from separate table
     const fetchJiraConfig = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('jira_integrations')
             .select('*')
             .eq('client_id', client.id)
@@ -569,10 +575,32 @@ function JiraSettings({ client, onUpdate }) {
         if (data) {
             setJiraConfig(data);
             setProjectKey(data.project_key || '');
+            setSelectedStatusId(data.default_status_id || '');
+            // If project key exists, fetch statuses
+            if (data.project_key) {
+                fetchStatuses(data);
+            }
         } else {
             setJiraConfig(null);
         }
         setLoading(false);
+    };
+
+    // Fetch available statuses from worker API
+    const fetchStatuses = async (cfg) => {
+        const config = cfg || jiraConfig;
+        if (!config?.project_key) return;
+        setLoadingStatuses(true);
+        try {
+            const resp = await fetch(`${apiBaseUrl}/api/jira/statuses?clientId=${encodeURIComponent(client.id)}`);
+            const data = await resp.json();
+            if (data.statuses) {
+                setStatuses(data.statuses);
+            }
+        } catch (err) {
+            console.error('Failed to fetch statuses:', err);
+        }
+        setLoadingStatuses(false);
     };
 
     React.useEffect(() => {
@@ -605,8 +633,6 @@ function JiraSettings({ client, onUpdate }) {
         }
     }, []);
 
-    const apiBaseUrl = import.meta.env.VITE_API_URL.replace('/api/report', '');
-
     const handleConnect = () => {
         const url = `${apiBaseUrl}/api/jira/auth?clientId=${encodeURIComponent(client.id)}`;
         window.location.href = url;
@@ -626,6 +652,7 @@ function JiraSettings({ client, onUpdate }) {
             if (resp.ok) {
                 setMessage(t('integrations.jira_disconnected'));
                 setJiraConfig(null);
+                setStatuses([]);
                 onUpdate();
             } else {
                 setMessage(t('integrations.msg_disconnect_error'));
@@ -649,8 +676,32 @@ function JiraSettings({ client, onUpdate }) {
         } else {
             setMessage(t('integrations.msg_save_success'));
             onUpdate();
+            // Fetch statuses for the new project key
+            fetchStatuses({ ...jiraConfig, project_key: projectKey });
         }
         setSavingKey(false);
+    };
+
+    const handleSaveStatus = async (statusId) => {
+        setSelectedStatusId(statusId);
+        setSavingStatus(true);
+        setMessage('');
+        const statusObj = statuses.find(s => s.id === statusId);
+        const { error } = await supabase
+            .from('jira_integrations')
+            .update({
+                default_status_id: statusId || null,
+                default_status_name: statusObj?.name || null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('client_id', client.id);
+
+        if (error) {
+            setMessage(t('integrations.msg_save_error') + error.message);
+        } else {
+            setMessage(t('integrations.msg_save_success'));
+        }
+        setSavingStatus(false);
     };
 
     if (loading) {
@@ -698,6 +749,38 @@ function JiraSettings({ client, onUpdate }) {
                                 {t('integrations.jira_project_key_desc')}
                             </small>
                         </div>
+
+                        {/* Status / Column picker */}
+                        {jiraConfig.project_key && (
+                            <div className="form-group" style={{ marginTop: '16px' }}>
+                                <label htmlFor="jira-status">{t('integrations.jira_status_label')}</label>
+                                {loadingStatuses ? (
+                                    <div className="loading-spinner" style={{ margin: '8px 0' }} />
+                                ) : statuses.length > 0 ? (
+                                    <select
+                                        id="jira-status"
+                                        value={selectedStatusId}
+                                        onChange={(e) => handleSaveStatus(e.target.value)}
+                                        disabled={savingStatus}
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="">{t('integrations.jira_status_default')}</option>
+                                        {statuses.map(s => (
+                                            <option key={s.id} value={s.id}>
+                                                {s.name}{s.category ? ` (${s.category})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                                        {t('integrations.jira_status_none')}
+                                    </p>
+                                )}
+                                <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                                    {t('integrations.jira_status_desc')}
+                                </small>
+                            </div>
+                        )}
 
                         <div style={{ marginTop: '24px' }}>
                             <button

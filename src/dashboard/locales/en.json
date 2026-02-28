@@ -244,6 +244,10 @@
         "jira_disconnected": "Jira disconnected ✅",
         "jira_project_key": "Project Key",
         "jira_project_key_desc": "The key of the Jira project where bug issues will be created (e.g. BUG, FRONT).",
-        "jira_project_key_placeholder": "BUG"
+        "jira_project_key_placeholder": "BUG",
+        "jira_status_label": "Column for new bugs",
+        "jira_status_default": "Default (initial status)",
+        "jira_status_desc": "Choose which column on the board new bug reports should land in.",
+        "jira_status_none": "Save a Project Key first to load available columns."
     }
 }

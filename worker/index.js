@@ -148,6 +148,11 @@ export default {
             return handleJiraDisconnect(request, env);
         }
 
+        // ── Route: GET /api/jira/statuses — Fetch available statuses ──
+        if (url.pathname === '/api/jira/statuses' && request.method === 'GET') {
+            return handleJiraStatuses(request, env, url);
+        }
+
         // ── Health check ──
         if (url.pathname === '/health') {
             return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
@@ -244,11 +249,15 @@ async function handleReport(request, env) {
                 apikey: env.SUPABASE_KEY,
                 Authorization: `Bearer ${env.SUPABASE_KEY}`,
             },
-        }).then(r => r.json()).then(rows => rows?.[0] || null).catch(() => null);
+        }).then(r => r.json()).then(rows => rows?.[0] || null).catch((err) => { console.error('Jira config fetch error:', err); return null; });
 
         const jiraConfig = await jiraConfigPromise;
+        console.log('Jira config:', jiraConfig ? { cloud_id: jiraConfig.cloud_id, project_key: jiraConfig.project_key, has_token: !!jiraConfig.access_token } : 'null');
         if (jiraConfig && jiraConfig.access_token && jiraConfig.cloud_id && jiraConfig.project_key) {
+            console.log('Dispatching sendToJira...');
             integrationTasks.jira = sendToJira(report, jiraConfig, lang);
+        } else {
+            console.log('Jira integration skipped: missing config');
         }
 
         const keys = Object.keys(integrationTasks);
@@ -1200,6 +1209,26 @@ async function sendToJira(report, jiraConfig, lang = 'en') {
         });
     }
 
+    // Fetch available issue types for this project
+    const issueTypesResp = await fetch(
+        `https://api.atlassian.com/ex/jira/${jiraConfig.cloud_id}/rest/api/3/project/${jiraConfig.project_key}`,
+        { headers: { Authorization: `Bearer ${jiraConfig.access_token}`, Accept: 'application/json' } }
+    );
+
+    let issueTypeId = null;
+    if (issueTypesResp.ok) {
+        const projectData = await issueTypesResp.json();
+        const types = projectData.issueTypes || [];
+        // Try to find Bug type (case-insensitive, also check Russian names)
+        const bugType = types.find(t => /^(bug|баг|ошибка)$/i.test(t.name));
+        const taskType = types.find(t => /^(task|задача)$/i.test(t.name));
+        const picked = bugType || taskType || types.find(t => !t.subtask) || types[0];
+        if (picked) {
+            issueTypeId = picked.id;
+            console.log(`Jira issue type picked: "${picked.name}" (id: ${picked.id})`);
+        }
+    }
+
     const issueData = {
         fields: {
             project: { key: jiraConfig.project_key },
@@ -1209,7 +1238,7 @@ async function sendToJira(report, jiraConfig, lang = 'en') {
                 version: 1,
                 content: descriptionContent,
             },
-            issuetype: { name: 'Bug' },
+            issuetype: issueTypeId ? { id: issueTypeId } : { name: 'Task' },
         },
     };
 
@@ -1236,7 +1265,42 @@ async function sendToJira(report, jiraConfig, lang = 'en') {
     }
 
     const data = await resp.json();
-    return data.key; // e.g. "BUG-42"
+    const issueKey = data.key; // e.g. "BUG-42"
+
+    // If a default status is configured, transition the issue
+    if (jiraConfig.default_status_id) {
+        try {
+            // Get available transitions for the new issue
+            const transResp = await fetch(
+                `https://api.atlassian.com/ex/jira/${jiraConfig.cloud_id}/rest/api/3/issue/${issueKey}/transitions`,
+                { headers: { Authorization: `Bearer ${jiraConfig.access_token}`, Accept: 'application/json' } }
+            );
+            if (transResp.ok) {
+                const transData = await transResp.json();
+                const target = transData.transitions?.find(tr => tr.to?.id === jiraConfig.default_status_id);
+                if (target) {
+                    await fetch(
+                        `https://api.atlassian.com/ex/jira/${jiraConfig.cloud_id}/rest/api/3/issue/${issueKey}/transitions`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                Authorization: `Bearer ${jiraConfig.access_token}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ transition: { id: target.id } }),
+                        }
+                    );
+                    console.log(`Jira: transitioned ${issueKey} to status "${jiraConfig.default_status_name || jiraConfig.default_status_id}"`);
+                } else {
+                    console.log(`Jira: no direct transition to status ${jiraConfig.default_status_id} from initial state`);
+                }
+            }
+        } catch (transErr) {
+            console.error('Jira transition error (non-fatal):', transErr.message);
+        }
+    }
+
+    return issueKey;
 }
 
 // ────────────────────────────────────────────
@@ -1396,8 +1460,57 @@ async function handleJiraDisconnect(request, env) {
 }
 
 // ────────────────────────────────────────────
-// Notion OAuth: Start Authorization
+// Jira: Fetch project statuses
 // ────────────────────────────────────────────
+
+async function handleJiraStatuses(request, env, url) {
+    try {
+        const clientId = url.searchParams.get('clientId');
+        if (!clientId) {
+            return jsonResponse({ error: 'clientId is required' }, 400, request);
+        }
+
+        // Fetch jira config from DB
+        const cfgResp = await fetch(`${env.SUPABASE_URL}/rest/v1/jira_integrations?client_id=eq.${encodeURIComponent(clientId)}&select=*`, {
+            headers: { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` },
+        });
+        const rows = await cfgResp.json();
+        const cfg = rows?.[0];
+
+        if (!cfg || !cfg.access_token || !cfg.cloud_id || !cfg.project_key) {
+            return jsonResponse({ error: 'Jira not connected or project key missing' }, 400, request);
+        }
+
+        // Fetch statuses for the project from Jira API
+        const statusResp = await fetch(
+            `https://api.atlassian.com/ex/jira/${cfg.cloud_id}/rest/api/3/project/${cfg.project_key}/statuses`,
+            { headers: { Authorization: `Bearer ${cfg.access_token}`, Accept: 'application/json' } }
+        );
+
+        if (!statusResp.ok) {
+            const errText = await statusResp.text();
+            return jsonResponse({ error: 'Failed to fetch statuses', details: errText }, 502, request);
+        }
+
+        const issueTypes = await statusResp.json();
+
+        // Collect unique statuses across all issue types
+        const statusMap = new Map();
+        for (const issueType of issueTypes) {
+            for (const status of (issueType.statuses || [])) {
+                if (!statusMap.has(status.id)) {
+                    statusMap.set(status.id, { id: status.id, name: status.name, category: status.statusCategory?.name || '' });
+                }
+            }
+        }
+
+        const statuses = Array.from(statusMap.values());
+        return jsonResponse({ statuses }, 200, request);
+    } catch (err) {
+        console.error('handleJiraStatuses error:', err);
+        return jsonResponse({ error: 'Internal Server Error', details: err.message }, 500, request);
+    }
+}
 
 async function handleNotionAuth(request, env, url) {
     const clientId = url.searchParams.get('clientId');
